@@ -241,6 +241,28 @@ export default function App() {
   // Mulai Pelacakan Lokasi Sensor HP saat Jalan / Jogging
   const handleStart = async () => {
     setTrackerStatus('tracking');
+
+    // Pastikan titik awal jejak selalu terinisialisasi seketika
+    if (!currentLocation) {
+      const defaultStart: Coordinate = { latitude: -6.1754, longitude: 106.8272 };
+      setCurrentLocation(defaultStart);
+      if (routeCoordinates.length === 0) {
+        setRouteCoordinates([defaultStart]);
+        prevLocationRef.current = {
+          lat: defaultStart.latitude,
+          lon: defaultStart.longitude,
+          time: Date.now(),
+        };
+      }
+    } else if (routeCoordinates.length === 0) {
+      setRouteCoordinates([currentLocation]);
+      prevLocationRef.current = {
+        lat: currentLocation.latitude,
+        lon: currentLocation.longitude,
+        time: Date.now(),
+      };
+    }
+
     if (isSimulation) return;
 
     try {
@@ -616,6 +638,7 @@ export default function App() {
               isTracking={trackerStatus === 'tracking'}
               accuracy={gpsAccuracy}
               speedKmh={speedKmh}
+              distanceMeters={distanceMeters}
             />
 
             {/* Display Jarak, Durasi, Kalori secara langsung */}

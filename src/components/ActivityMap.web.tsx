@@ -8,6 +8,7 @@ export const ActivityMap: React.FC<ActivityMapProps> = ({
   isTracking,
   accuracy,
   speedKmh = 0,
+  distanceMeters = 0,
 }) => {
   const iframeRef = useRef<HTMLIFrameElement | null>(null);
 
@@ -38,7 +39,7 @@ export const ActivityMap: React.FC<ActivityMapProps> = ({
     }
   }, [currentLocation, routeCoordinates, isTracking]);
 
-  // Siapkan HTML mandiri Leaflet OpenStreetMap
+  // Siapkan HTML mandiri Leaflet OpenStreetMap dengan jejak rute dan jejak titik langkah
   const initialHtml = useMemo(() => {
     const lat = activePosition.latitude;
     const lon = activePosition.longitude;
@@ -100,6 +101,7 @@ export const ActivityMap: React.FC<ActivityMapProps> = ({
 
     L.control.zoom({ position: 'topright' }).addTo(map);
 
+    // Layer garis jejak rute
     var polyline = L.polyline(${coordsJson}, {
       color: '#10B981',
       weight: 5,
@@ -107,6 +109,9 @@ export const ActivityMap: React.FC<ActivityMapProps> = ({
       lineCap: 'round',
       lineJoin: 'round'
     }).addTo(map);
+
+    // Layer grup untuk titik-titik jejak langkah kaki
+    var crumbsLayer = L.layerGroup().addTo(map);
 
     var startCoords = ${startJson};
     var startMarker = startCoords ? L.marker(startCoords, {
@@ -128,6 +133,24 @@ export const ActivityMap: React.FC<ActivityMapProps> = ({
       if (route && route.length > 0) {
         var latlngs = route.map(function(c) { return [c.latitude, c.longitude]; });
         polyline.setLatLngs(latlngs);
+
+        // Gambar titik-titik jejak langkah kaki di sepanjang jalan
+        crumbsLayer.clearLayers();
+        route.forEach(function(c, i) {
+          if (i > 0 && i < route.length - 1) {
+            var stride = route.length > 50 ? 2 : 1;
+            if (i % stride === 0) {
+              L.circleMarker([c.latitude, c.longitude], {
+                radius: 3.5,
+                color: '#ffffff',
+                weight: 1.5,
+                fillColor: '#34D399',
+                fillOpacity: 1
+              }).addTo(crumbsLayer);
+            }
+          }
+        });
+
         if (!startMarker && route.length > 0) {
           startMarker = L.marker([route[0].latitude, route[0].longitude], {
             icon: L.divIcon({ className: '', html: '<div class="start-badge">MULAI</div>', iconSize: [46, 20], iconAnchor: [23, 10] })
@@ -165,26 +188,28 @@ export const ActivityMap: React.FC<ActivityMapProps> = ({
           />
           <Text style={styles.statusPillText}>
             {isTracking
-              ? `Melacak Rute (${routeCoordinates.length} titik GPS)`
+              ? `Jejak: ${routeCoordinates.length} titik (${distanceMeters < 1000 ? `${Math.round(distanceMeters)}m` : `${(distanceMeters / 1000).toFixed(2)}km`})`
               : currentLocation
-              ? 'GPS Terkunci • Siap'
+              ? 'GPS Terkunci • Siap Melangkah'
               : 'Mencari Sinyal GPS...'}
           </Text>
         </View>
 
         {accuracy !== undefined && accuracy !== null && (
           <View style={styles.accuracyPill}>
-            <Text style={styles.accuracyPillText}>Akurasi: ±{accuracy}m</Text>
+            <Text style={styles.accuracyPillText}>±{accuracy}m</Text>
           </View>
         )}
       </View>
 
-      {/* Bottom Information Footer */}
+      {/* Bottom Information Footer (Legenda Jejak) */}
       <View style={styles.bottomBar}>
         <Text style={styles.bottomBarText}>
-          {isTracking
-            ? `🟢 Rute GPS Aktif • Kecepatan: ${speedKmh} km/jam`
-            : 'Peta OpenStreetMap Aktif • Tekan "Mulai Aktivitas" untuk melacak'}
+          {routeCoordinates.length > 1
+            ? `🟢 Garis hijau & titik putih adalah JEJAK LANGKAH yang telah Anda lalui (${routeCoordinates.length} titik)`
+            : isTracking
+            ? `🟢 Jejak berjalan aktif • Kecepatan: ${speedKmh} km/jam`
+            : 'Peta OpenStreetMap Siap • Tekan "Mulai Aktivitas" untuk merekam jejak langkah'}
         </Text>
       </View>
     </View>

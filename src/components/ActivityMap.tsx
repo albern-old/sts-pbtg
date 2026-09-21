@@ -1,6 +1,6 @@
 import React, { useRef, useEffect, useState } from 'react';
-import { StyleSheet, View, Text, TouchableOpacity, Platform } from 'react-native';
-import MapView, { Polyline, Marker, PROVIDER_DEFAULT, MapType } from 'react-native-maps';
+import { StyleSheet, View, Text, TouchableOpacity } from 'react-native';
+import MapView, { Polyline, Marker, Circle, PROVIDER_DEFAULT, MapType } from 'react-native-maps';
 import { Crosshair, Layers, Plus, Minus, Navigation, MapPin } from 'lucide-react-native';
 
 export interface Coordinate {
@@ -14,6 +14,7 @@ export interface ActivityMapProps {
   isTracking: boolean;
   accuracy?: number | null;
   speedKmh?: number;
+  distanceMeters?: number;
 }
 
 export const ActivityMap: React.FC<ActivityMapProps> = ({
@@ -22,6 +23,7 @@ export const ActivityMap: React.FC<ActivityMapProps> = ({
   isTracking,
   accuracy,
   speedKmh = 0,
+  distanceMeters = 0,
 }) => {
   const mapRef = useRef<MapView | null>(null);
   const [mapType, setMapType] = useState<MapType>('standard');
@@ -39,7 +41,7 @@ export const ActivityMap: React.FC<ActivityMapProps> = ({
       ? routeCoordinates[routeCoordinates.length - 1]
       : fallbackCoord);
 
-  // Otomatis menggeser kamera peta mengikuti pergerakan pengguna saat tracking aktif
+  // Otomatis menggeser kamera peta mengikuti pergerakan jejak saat tracking aktif
   useEffect(() => {
     if (currentLocation && mapRef.current) {
       mapRef.current.animateToRegion(
@@ -130,18 +132,18 @@ export const ActivityMap: React.FC<ActivityMapProps> = ({
           longitudeDelta: delta,
         }}
       >
-        {/* Layer 1: Glow / Bayangan Jalur GPS */}
+        {/* Layer 1: Pendaran / Glow Jejak Rute Perjalanan */}
         {routeCoordinates.length > 1 && (
           <Polyline
             coordinates={routeCoordinates}
-            strokeColor="rgba(16, 185, 129, 0.4)"
-            strokeWidth={10}
+            strokeColor="rgba(16, 185, 129, 0.45)"
+            strokeWidth={11}
             lineCap="round"
             lineJoin="round"
           />
         )}
 
-        {/* Layer 2: Garis Jalur GPS Solid Emerald Hijau */}
+        {/* Layer 2: Garis Utama Jejak Rute (Emerald Hijau Solid) */}
         {routeCoordinates.length > 1 && (
           <Polyline
             coordinates={routeCoordinates}
@@ -151,6 +153,24 @@ export const ActivityMap: React.FC<ActivityMapProps> = ({
             lineJoin="round"
           />
         )}
+
+        {/* Layer 3: Titik-Titik Jejak Langkah Kaki (Breadcrumb Step Dots) */}
+        {routeCoordinates.map((coord, idx) => {
+          if (idx === 0 || idx === routeCoordinates.length - 1) return null;
+          const stride = routeCoordinates.length > 50 ? 2 : 1;
+          if (idx % stride !== 0) return null;
+          return (
+            <Circle
+              key={`crumb-${idx}`}
+              center={coord}
+              radius={2.5}
+              fillColor="#34D399"
+              strokeColor="#FFFFFF"
+              strokeWidth={1.5}
+              zIndex={5}
+            />
+          );
+        })}
 
         {/* Pin Titik Mulai (Start Marker) */}
         {startPoint && (
@@ -191,7 +211,7 @@ export const ActivityMap: React.FC<ActivityMapProps> = ({
         )}
       </MapView>
 
-      {/* Baris Status Atas (HUD Pelacakan) */}
+      {/* Baris Status Atas (HUD Pelacakan & Status Jejak) */}
       <View style={styles.topHud}>
         <View style={styles.statusPill}>
           <View
@@ -202,16 +222,16 @@ export const ActivityMap: React.FC<ActivityMapProps> = ({
           />
           <Text style={styles.statusPillText}>
             {isTracking
-              ? `Melacak Rute (${routeCoordinates.length} titik)`
+              ? `Jejak: ${routeCoordinates.length} titik (${distanceMeters < 1000 ? `${Math.round(distanceMeters)}m` : `${(distanceMeters / 1000).toFixed(2)}km`})`
               : currentLocation
-              ? 'GPS Terkunci • Siap'
+              ? 'GPS Terkunci • Siap Melangkah'
               : 'Mencari Sinyal GPS...'}
           </Text>
         </View>
 
         {accuracy !== undefined && accuracy !== null && (
           <View style={styles.accuracyPill}>
-            <Text style={styles.accuracyPillText}>Akurasi: ±{accuracy}m</Text>
+            <Text style={styles.accuracyPillText}>±{accuracy}m</Text>
           </View>
         )}
       </View>
@@ -255,12 +275,14 @@ export const ActivityMap: React.FC<ActivityMapProps> = ({
         </TouchableOpacity>
       </View>
 
-      {/* Label Keterangan Bawah */}
+      {/* Label Keterangan Bawah (Legend Jejak Langkah) */}
       <View style={styles.bottomBar}>
         <Text style={styles.bottomBarText}>
-          {isTracking
-            ? '🟢 Garis hijau menggambar rute jalan / lari Anda secara langsung'
-            : 'Tekan "Mulai Aktivitas" untuk merekam jejak langkah & rute'}
+          {routeCoordinates.length > 1
+            ? `🟢 Garis hijau & titik putih adalah JEJAK LANGKAH yang telah Anda lewati (${routeCoordinates.length} titik)`
+            : isTracking
+            ? '🟢 Jejak berjalan aktif • Mulailah melangkah untuk menggambar jejak rute'
+            : 'Peta siap • Tekan "Mulai Aktivitas" untuk merekam jejak perjalanan'}
         </Text>
       </View>
     </View>
@@ -295,7 +317,7 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     gap: 6,
-    backgroundColor: 'rgba(15, 23, 42, 0.85)',
+    backgroundColor: 'rgba(15, 23, 42, 0.88)',
     paddingHorizontal: 10,
     paddingVertical: 6,
     borderRadius: 999,
@@ -406,11 +428,11 @@ const styles = StyleSheet.create({
     bottom: 0,
     left: 0,
     right: 0,
-    backgroundColor: 'rgba(15, 23, 42, 0.88)',
+    backgroundColor: 'rgba(15, 23, 42, 0.9)',
     paddingVertical: 6,
     paddingHorizontal: 12,
     borderTopWidth: 1,
-    borderTopColor: 'rgba(255, 255, 255, 0.1)',
+    borderTopColor: 'rgba(255, 255, 255, 0.12)',
   },
   bottomBarText: {
     color: '#CBD5E1',
