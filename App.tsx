@@ -26,8 +26,15 @@ import {
   Minus,
   CheckCircle2,
   Compass,
+  Bookmark,
 } from 'lucide-react-native';
 import { ActivityMap, Coordinate } from './src/components/ActivityMap';
+import { BmiGauge } from './src/components/BmiGauge';
+import { BodyIllustration } from './src/components/BodyIllustration';
+import { StatusCard } from './src/components/StatusCard';
+import { TelemetryGrid } from './src/components/TelemetryGrid';
+import { HeartRateZonesModal } from './src/components/HeartRateZonesModal';
+import { calculateTelemetry } from './src/utils/telemetry';
 
 // --- Haversine Distance Formula (meter) ---
 function getHaversineDistance(lat1: number, lon1: number, lat2: number, lon2: number): number {
@@ -50,62 +57,32 @@ export default function App() {
   const [age, setAge] = useState<number>(26);
   const [weightKg, setWeightKg] = useState<number>(72.5);
   const [heightCm, setHeightCm] = useState<number>(175);
+  const [isHeartZonesOpen, setIsHeartZonesOpen] = useState<boolean>(false);
 
-  // PROSES: BMI = berat ÷ [tinggi (m)]²
-  const heightM = heightCm / 100;
-  const bmi = Math.round((weightKg / (heightM * heightM)) * 10) / 10;
+  // PROSES & OUTPUT TELEMETRI LENGKAP:
+  // Menghitung BMI, Kategori WHO, Berat Ideal, BMR, TDEE, Body Fat %, Hidrasi, & Heart Rate Zones
+  const metrics = useMemo(() => {
+    return calculateTelemetry(
+      heightCm,
+      weightKg,
+      age,
+      gender === 'pria' ? 'male' : 'female'
+    );
+  }, [heightCm, weightKg, age, gender]);
 
-  // OUTPUT: Kategori WHO (Kurus, Normal, Gemuk, Obesitas)
-  const category = useMemo(() => {
-    if (bmi < 18.5) {
-      return {
-        label: 'Kurus',
-        color: '#3B82F6',
-        badge: 'Di Bawah Normal',
-        bg: '#EFF6FF',
-        torsoScale: 0.85,
-        hipScale: 0.85,
-      };
-    }
-    if (bmi <= 24.9) {
-      return {
-        label: 'Normal',
-        color: '#10B981',
-        badge: 'Rentang Ideal',
-        bg: '#ECFDF5',
-        torsoScale: 1.0,
-        hipScale: 1.0,
-      };
-    }
-    if (bmi <= 29.9) {
-      return {
-        label: 'Gemuk',
-        color: '#F59E0B',
-        badge: 'Kelebihan Berat',
-        bg: '#FFFBEB',
-        torsoScale: 1.18,
-        hipScale: 1.15,
-      };
-    }
-    return {
-      label: 'Obesitas',
-      color: '#EF4444',
-      badge: 'Kategori Kritis',
-      bg: '#FEF2F2',
-      torsoScale: 1.35,
-      hipScale: 1.3,
-    };
-  }, [bmi]);
+  const handleResetBmi = () => {
+    setGender('pria');
+    setAge(26);
+    setHeightCm(175);
+    setWeightKg(72.5);
+  };
 
-  // OUTPUT: Rekomendasi Berat Badan Ideal (BMI 18.5 - 24.9)
-  const idealMin = Math.round(18.5 * heightM * heightM * 10) / 10;
-  const idealMax = Math.round(24.9 * heightM * heightM * 10) / 10;
-  const weightDelta =
-    weightKg > idealMax
-      ? Math.round((weightKg - idealMax) * 10) / 10
-      : weightKg < idealMin
-      ? Math.round((weightKg - idealMin) * 10) / 10
-      : 0;
+  const handleSaveBmi = () => {
+    Alert.alert(
+      'Riwayat Tersimpan',
+      `Data Biometrik tersimpan:\n• BMI: ${metrics.bmi} (${metrics.category.label})\n• Berat Ideal: ${metrics.idealWeightMin} - ${metrics.idealWeightMax} kg\n• BMR: ${metrics.bmr} kcal\n• TDEE: ${metrics.tdee} kcal\n• Estimasi Lemak: ${metrics.bodyFatPercentage}%`
+    );
+  };
 
   // ==========================================
   // BAGIAN 2: PEMANTAU JARAK TEMPUH (EXPO LOCATION)
@@ -514,60 +491,54 @@ export default function App() {
               </View>
             </View>
 
-            {/* OUTPUT HASIL BMI */}
-            <View style={[styles.resultCard, { backgroundColor: category.bg, borderColor: category.color }]}>
-              {/* Elemen Gambar/Ikon Pendukung: Siluet Tubuh SVG Morphing */}
-              <View style={styles.bodySilhouetteBox}>
-                <Svg width="70" height="100" viewBox="0 0 100 140">
-                  {/* Head */}
-                  <Circle cx="50" cy="20" r="10" fill={category.color} />
-                  {/* Neck */}
-                  <Line x1="50" y1="30" x2="50" y2="38" stroke={category.color} strokeWidth="5" strokeLinecap="round" />
-                  {/* Torso */}
-                  <Path
-                    d={
-                      gender === 'pria'
-                        ? `M ${50 - 15 * category.torsoScale} 38 L ${50 + 15 * category.torsoScale} 38 L ${50 + 12 * category.hipScale} 78 L ${50 - 12 * category.hipScale} 78 Z`
-                        : `M ${50 - 13 * category.torsoScale} 38 L ${50 + 13 * category.torsoScale} 38 L ${50 + 16 * category.hipScale} 80 L ${50 - 16 * category.hipScale} 80 Z`
-                    }
-                    fill={category.color}
-                  />
-                  {/* Arms */}
-                  <Line x1={50 - 15 * category.torsoScale} y1="40" x2={50 - 20 * category.torsoScale} y2="76" stroke={category.color} strokeWidth="5" strokeLinecap="round" />
-                  <Line x1={50 + 15 * category.torsoScale} y1="40" x2={50 + 20 * category.torsoScale} y2="76" stroke={category.color} strokeWidth="5" strokeLinecap="round" />
-                  {/* Legs */}
-                  <Line x1={50 - 7 * category.hipScale} y1="78" x2={50 - 9 * category.hipScale} y2="128" stroke={category.color} strokeWidth="5" strokeLinecap="round" />
-                  <Line x1={50 + 7 * category.hipScale} y1="78" x2={50 + 9 * category.hipScale} y2="128" stroke={category.color} strokeWidth="5" strokeLinecap="round" />
-                </Svg>
-                <Text style={[styles.catBadge, { color: category.color }]}>{category.badge}</Text>
-              </View>
+            {/* ========================================================= */}
+            {/* FITUR TELEMETRI BIOMETRIK LENGKAP                        */}
+            {/* ========================================================= */}
 
-              <View style={styles.resultInfo}>
-                <Text style={styles.formulaText}>
-                  Proses: {weightKg} ÷ ({heightM}m)²
-                </Text>
-                <Text style={styles.bmiNumber}>{bmi.toFixed(1)}</Text>
-                <Text style={[styles.bmiCategory, { color: category.color }]}>
-                  Kategori: {category.label}
-                </Text>
+            {/* 1. Biometric Telemetry Index Circular Gauge & Spectrum Bar */}
+            <BmiGauge bmi={metrics.bmi} category={metrics.category} />
 
-                {/* Rekomendasi Berat Badan Ideal */}
-                <View style={styles.idealRecBox}>
-                  <Text style={styles.idealTitle}>Rekomendasi Berat Ideal:</Text>
-                  <Text style={styles.idealRange}>
-                    {idealMin} - {idealMax} kg
-                  </Text>
-                  {weightDelta > 0 ? (
-                    <Text style={styles.deltaText}>Perlu turun {weightDelta} kg</Text>
-                  ) : weightDelta < 0 ? (
-                    <Text style={styles.deltaText}>Perlu naik {Math.abs(weightDelta)} kg</Text>
-                  ) : (
-                    <Text style={[styles.deltaText, { color: '#10B981' }]}>
-                      Berat sudah dalam rentang ideal!
-                    </Text>
-                  )}
-                </View>
-              </View>
+            {/* 2. Rekomendasi Berat Badan Ideal & Morphing Silhouette */}
+            <BodyIllustration
+              gender={gender === 'pria' ? 'male' : 'female'}
+              category={metrics.category}
+              bmi={metrics.bmi}
+              weightKg={weightKg}
+              idealWeightMin={metrics.idealWeightMin}
+              idealWeightMax={metrics.idealWeightMax}
+              weightDeltaToNormal={metrics.weightDeltaToNormal}
+            />
+
+            {/* 3. Status Fisiologis & Dual Rekomendasi Aktivitas + Nutrisi */}
+            <StatusCard
+              category={metrics.category}
+              weightDelta={metrics.weightDeltaToNormal}
+            />
+
+            {/* 4. Biometric Performance Matrix (6 Cards Grid) */}
+            <TelemetryGrid
+              metrics={metrics}
+              onOpenHeartZones={() => setIsHeartZonesOpen(true)}
+            />
+
+            {/* 5. Action Buttons: Simpan Riwayat & Reset BMI */}
+            <View style={styles.actionButtonsRow}>
+              <TouchableOpacity
+                style={styles.saveHistoryBtn}
+                onPress={handleSaveBmi}
+                activeOpacity={0.8}
+              >
+                <Bookmark size={16} color="#FFFFFF" />
+                <Text style={styles.saveHistoryText}>Simpan Riwayat BMI</Text>
+              </TouchableOpacity>
+              <TouchableOpacity
+                style={styles.resetBmiBtn}
+                onPress={handleResetBmi}
+                activeOpacity={0.8}
+              >
+                <RotateCcw size={15} color="#475569" />
+                <Text style={styles.resetBmiText}>Reset BMI</Text>
+              </TouchableOpacity>
             </View>
           </View>
 
@@ -695,9 +666,18 @@ export default function App() {
           {/* Footer Motivasi */}
           <View style={styles.footer}>
             <Sparkles size={14} color="#10B981" />
-            <Text style={styles.footerText}>Kinetic Pulse • Expo React Native Single Screen</Text>
+            <Text style={styles.footerText}>Kinetic Pulse • Telemetri Biometrik & Pemantau GPS</Text>
           </View>
         </ScrollView>
+
+        {/* Modal Zona Detak Jantung Latihan */}
+        <HeartRateZonesModal
+          isOpen={isHeartZonesOpen}
+          onClose={() => setIsHeartZonesOpen(false)}
+          age={age}
+          maxHeartRate={metrics.maxHeartRate}
+          zones={metrics.heartRateZones}
+        />
       </SafeAreaView>
     </SafeAreaProvider>
   );
@@ -774,30 +754,49 @@ const styles = StyleSheet.create({
     borderColor: '#CBD5E1',
   },
   stepperVal: { fontSize: 18, fontWeight: '800', color: '#0F172A' },
-  resultCard: {
-    marginTop: 12,
-    borderRadius: 20,
-    padding: 14,
-    borderWidth: 1.5,
+  actionButtonsRow: {
+    flexDirection: 'row',
+    gap: 10,
+    marginTop: 10,
+    width: '100%',
+  },
+  saveHistoryBtn: {
+    flex: 2,
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 14,
+    justifyContent: 'center',
+    gap: 8,
+    backgroundColor: '#10B981',
+    paddingVertical: 14,
+    borderRadius: 16,
+    shadowColor: '#10B981',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.25,
+    shadowRadius: 8,
+    elevation: 3,
   },
-  bodySilhouetteBox: { alignItems: 'center', width: 70 },
-  catBadge: { fontSize: 10, fontWeight: '800', marginTop: 4, textAlign: 'center' },
-  resultInfo: { flex: 1 },
-  formulaText: { fontSize: 11, color: '#64748B', fontWeight: '600' },
-  bmiNumber: { fontSize: 36, fontWeight: '900', color: '#0F172A', lineHeight: 42 },
-  bmiCategory: { fontSize: 15, fontWeight: '800' },
-  idealRecBox: {
-    marginTop: 6,
-    paddingTop: 6,
-    borderTopWidth: 1,
-    borderTopColor: 'rgba(0,0,0,0.06)',
+  saveHistoryText: {
+    color: '#FFFFFF',
+    fontSize: 13,
+    fontWeight: '800',
   },
-  idealTitle: { fontSize: 11, color: '#64748B', fontWeight: '600' },
-  idealRange: { fontSize: 13, fontWeight: '800', color: '#0F172A' },
-  deltaText: { fontSize: 11, fontWeight: '700', color: '#D97706', marginTop: 2 },
+  resetBmiBtn: {
+    flex: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 6,
+    backgroundColor: '#FFFFFF',
+    paddingVertical: 14,
+    borderRadius: 16,
+    borderWidth: 1,
+    borderColor: '#E2E8F0',
+  },
+  resetBmiText: {
+    color: '#475569',
+    fontSize: 13,
+    fontWeight: '700',
+  },
   darkCard: {
     backgroundColor: '#0B1C30',
     borderRadius: 24,
