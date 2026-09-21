@@ -125,6 +125,32 @@ export default function App() {
   const locationSubRef = useRef<Location.LocationSubscription | null>(null);
   const simIntervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
+  // Ambil lokasi GPS awal saat aplikasi dibuka agar peta langsung berfokus ke posisi pengguna
+  useEffect(() => {
+    (async () => {
+      try {
+        const { status } = await Location.requestForegroundPermissionsAsync();
+        if (status === 'granted') {
+          const loc = await Location.getCurrentPositionAsync({
+            accuracy: Location.Accuracy.Balanced,
+          });
+          if (loc?.coords) {
+            const coord: Coordinate = {
+              latitude: loc.coords.latitude,
+              longitude: loc.coords.longitude,
+            };
+            setCurrentLocation(coord);
+            if (loc.coords.accuracy) {
+              setGpsAccuracy(Math.round(loc.coords.accuracy));
+            }
+          }
+        }
+      } catch {
+        // Fallback aman ke koordinat default
+      }
+    })();
+  }, []);
+
   // Timer Durasi
   useEffect(() => {
     let interval: ReturnType<typeof setInterval> | null = null;
@@ -141,22 +167,30 @@ export default function App() {
   // Simulasi Pergerakan (virtual coordinates realtime untuk pengujian di dalam ruangan)
   useEffect(() => {
     if (trackerStatus === 'tracking' && isSimulation) {
+      let simStep = 0;
       simIntervalRef.current = setInterval(() => {
-        // Kecepatan stabil ~8.3 km/jam (~2.3 m/s)
-        const delta = 2.3 + (Math.random() * 0.4 - 0.2);
+        simStep++;
+        // Kecepatan jalan santai / jogging ~5.8 km/jam (~1.6 m/s)
+        const delta = 1.6 + (Math.random() * 0.3 - 0.15);
         setDistanceMeters((d) => Math.round((d + delta) * 10) / 10);
         setSpeedKmh(Math.round(delta * 3.6 * 10) / 10);
         setGpsAccuracy(3);
 
-        // Tambahkan koordinat virtual bertahap agar garis peta terlukis
+        // Tambahkan koordinat virtual bertahap dengan kelokan rute yang natural
         setCurrentLocation((prev) => {
-          const baseLat = prev ? prev.latitude : -6.2088;
-          const baseLon = prev ? prev.longitude : 106.8456;
+          const baseLat = prev ? prev.latitude : -6.1754;
+          const baseLon = prev ? prev.longitude : 106.8272;
+          const curve = Math.sin(simStep / 8) * 0.000015;
           const nextCoord: Coordinate = {
-            latitude: baseLat + 0.00003,
-            longitude: baseLon + 0.00004,
+            latitude: baseLat + 0.000025 + curve,
+            longitude: baseLon + 0.00003,
           };
-          setRouteCoordinates((coords) => [...coords, nextCoord]);
+          setRouteCoordinates((coords) => {
+            if (coords.length === 0 && prev) {
+              return [prev, nextCoord];
+            }
+            return [...coords, nextCoord];
+          });
           return nextCoord;
         });
       }, 1000);
@@ -204,7 +238,7 @@ export default function App() {
     return Math.round(totalCalories * 10) / 10;
   }, [durationSeconds, distanceMeters, speedKmh, weightKg]);
 
-  // Mulai Pelacakan Lokasi Sensor HP dengan Anti-Jitter & Noise Filter
+  // Mulai Pelacakan Lokasi Sensor HP saat Jalan / Jogging
   const handleStart = async () => {
     setTrackerStatus('tracking');
     if (isSimulation) return;
@@ -214,16 +248,43 @@ export default function App() {
       if (status !== 'granted') {
         Alert.alert(
           'Izin Lokasi Diperlukan',
-          'Aktifkan sensor lokasi atau gunakan fitur Mode Simulasi untuk menguji.'
+          'Aktifkan sensor lokasi HP Anda atau gunakan Mode Simulasi untuk menguji pelacakan rute.'
         );
         return;
       }
 
+      // Pastikan titik awal sudah tercatat sebelum bergerak
+      if (!currentLocation) {
+        const initialLoc = await Location.getCurrentPositionAsync({
+          accuracy: Location.Accuracy.High,
+        });
+        if (initialLoc?.coords) {
+          const startCoord: Coordinate = {
+            latitude: initialLoc.coords.latitude,
+            longitude: initialLoc.coords.longitude,
+          };
+          setCurrentLocation(startCoord);
+          setRouteCoordinates([startCoord]);
+          prevLocationRef.current = {
+            lat: startCoord.latitude,
+            lon: startCoord.longitude,
+            time: Date.now(),
+          };
+        }
+      } else if (routeCoordinates.length === 0) {
+        setRouteCoordinates([currentLocation]);
+        prevLocationRef.current = {
+          lat: currentLocation.latitude,
+          lon: currentLocation.longitude,
+          time: Date.now(),
+        };
+      }
+
       const sub = await Location.watchPositionAsync(
         {
-          accuracy: Location.Accuracy.High,
-          distanceInterval: 2,
-          timeInterval: 1000,
+          accuracy: Location.Accuracy.BestForNavigation,
+          distanceInterval: 1, // Merekam pergerakan setiap 1 meter
+          timeInterval: 1000,   // Evaluasi setiap detik
         },
         (loc) => {
           const { latitude, longitude, accuracy, speed } = loc.coords;
@@ -231,12 +292,13 @@ export default function App() {
           if (accuracy) setGpsAccuracy(Math.round(accuracy));
 
           // 1. FILTER AKURASI SATELIT:
-          // Abaikan titik GPS dengan ketidakpastian sinyal buruk (> 25 meter)
-          if (accuracy && accuracy > 25) {
+          // Abaikan sinyal GPS yang sangat kabur (> 40 meter)
+          if (accuracy && accuracy > 40) {
             return;
           }
 
-          setCurrentLocation({ latitude, longitude });
+          const newCoord: Coordinate = { latitude, longitude };
+          setCurrentLocation(newCoord);
 
           if (prevLocationRef.current) {
             const d = getHaversineDistance(
@@ -248,25 +310,23 @@ export default function App() {
             const timeDeltaSec = (now - prevLocationRef.current.time) / 1000;
             const derivedSpeedMps = timeDeltaSec > 0 ? d / timeDeltaSec : 0;
 
-            // 2. FILTER DERAU DIAM (STATIC JITTER FILTER):
-            // Abaikan pergeseran < 2.0 meter saat diam agar jarak tidak bertambah sendiri
+            // 2. FILTER PERGERAKAN JALAN / JOGGING:
+            // Langkah jalan kaki berkisar 0.8 - 1.4 meter per detik.
+            // d >= 0.8 meter merekam setiap langkah jalan/jogging tanpa lonjakan saat HP diam.
             // 3. FILTER LOMPATAN SPIKE:
-            // Batasi kecepatan fisik manusia wajar (< 13.0 m/s atau ~47 km/jam)
-            const isDeviceMoving = (speed !== null && speed >= 0.4) || derivedSpeedMps >= 0.4;
-            const isValidSpeed = derivedSpeedMps < 13.0;
-
-            if (d >= 2.0 && isDeviceMoving && isValidSpeed) {
+            // Batasi kecepatan fisik wajar pelari/pejalan (< 14.0 m/s atau ~50 km/jam).
+            if (d >= 0.8 && derivedSpeedMps < 14.0) {
               setDistanceMeters((prev) => Math.round((prev + d) * 10) / 10);
               const validSpeedKmh =
                 speed !== null && speed >= 0 ? speed * 3.6 : derivedSpeedMps * 3.6;
               setSpeedKmh(Math.round(validSpeedKmh * 10) / 10);
-              setRouteCoordinates((coords) => [...coords, { latitude, longitude }]);
+              setRouteCoordinates((coords) => [...coords, newCoord]);
               prevLocationRef.current = { lat: latitude, lon: longitude, time: now };
             }
           } else {
             // Titik awal pertama
             prevLocationRef.current = { lat: latitude, lon: longitude, time: now };
-            setRouteCoordinates([{ latitude, longitude }]);
+            setRouteCoordinates([newCoord]);
           }
         }
       );
@@ -555,6 +615,7 @@ export default function App() {
               routeCoordinates={routeCoordinates}
               isTracking={trackerStatus === 'tracking'}
               accuracy={gpsAccuracy}
+              speedKmh={speedKmh}
             />
 
             {/* Display Jarak, Durasi, Kalori secara langsung */}

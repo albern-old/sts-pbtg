@@ -1,101 +1,191 @@
-import React from 'react';
+import React, { useEffect, useRef, useMemo } from 'react';
 import { StyleSheet, View, Text } from 'react-native';
-import Svg, { Circle, Polyline as SvgPolyline, Line, Rect } from 'react-native-svg';
-import { MapPin, Navigation } from 'lucide-react-native';
-import { ActivityMapProps } from './ActivityMap';
+import { ActivityMapProps, Coordinate } from './ActivityMap';
 
 export const ActivityMap: React.FC<ActivityMapProps> = ({
   currentLocation,
   routeCoordinates,
   isTracking,
   accuracy,
+  speedKmh = 0,
 }) => {
-  // Normalize GPS coordinates to a 100x100 SVG viewbox
-  const getSvgPoints = () => {
-    if (routeCoordinates.length === 0) return '';
-    const lats = routeCoordinates.map((c) => c.latitude);
-    const lons = routeCoordinates.map((c) => c.longitude);
-    const minLat = Math.min(...lats);
-    const maxLat = Math.max(...lats);
-    const minLon = Math.min(...lons);
-    const maxLon = Math.max(...lons);
+  const iframeRef = useRef<HTMLIFrameElement | null>(null);
 
-    const latSpan = maxLat - minLat || 0.0001;
-    const lonSpan = maxLon - minLon || 0.0001;
-
-    return routeCoordinates
-      .map((c) => {
-        const x = 15 + ((c.longitude - minLon) / lonSpan) * 70;
-        // Invert Y because latitude goes north (up) but SVG Y goes down
-        const y = 85 - ((c.latitude - minLat) / latSpan) * 70;
-        return `${x.toFixed(1)},${y.toFixed(1)}`;
-      })
-      .join(' ');
+  // Fallback coordinate (Monas / Jakarta Pusat) bila GPS belum resolving
+  const fallbackCoord: Coordinate = {
+    latitude: -6.1754,
+    longitude: 106.8272,
   };
 
-  const pointsString = getSvgPoints();
+  const activePosition =
+    currentLocation ||
+    (routeCoordinates.length > 0
+      ? routeCoordinates[routeCoordinates.length - 1]
+      : fallbackCoord);
+
+  // Kirim update koordinat realtime ke Leaflet OpenStreetMap di dalam iframe
+  useEffect(() => {
+    if (iframeRef.current && iframeRef.current.contentWindow) {
+      iframeRef.current.contentWindow.postMessage(
+        {
+          type: 'UPDATE_COORDS',
+          currentLocation,
+          routeCoordinates,
+          isTracking,
+        },
+        '*'
+      );
+    }
+  }, [currentLocation, routeCoordinates, isTracking]);
+
+  // Siapkan HTML mandiri Leaflet OpenStreetMap
+  const initialHtml = useMemo(() => {
+    const lat = activePosition.latitude;
+    const lon = activePosition.longitude;
+    const coordsJson = JSON.stringify(
+      routeCoordinates.map((c) => [c.latitude, c.longitude])
+    );
+    const startJson =
+      routeCoordinates.length > 0
+        ? JSON.stringify([routeCoordinates[0].latitude, routeCoordinates[0].longitude])
+        : 'null';
+
+    return `<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+  <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+  <style>
+    * { box-sizing: border-box; }
+    html, body, #map { width: 100%; height: 100%; margin: 0; padding: 0; background: #0f172a; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; }
+    .runner-marker {
+      width: 22px;
+      height: 22px;
+      border-radius: 50%;
+      background: #10B981;
+      border: 3px solid #FFFFFF;
+      box-shadow: 0 0 15px #10B981, 0 0 25px rgba(16, 185, 129, 0.7);
+    }
+    .start-badge {
+      background: #059669;
+      color: #FFFFFF;
+      font-size: 9px;
+      font-weight: 800;
+      padding: 3px 6px;
+      border-radius: 4px;
+      border: 1.5px solid #FFFFFF;
+      box-shadow: 0 2px 6px rgba(0,0,0,0.3);
+      white-space: nowrap;
+    }
+    .leaflet-control-zoom {
+      border: none !important;
+      border-radius: 10px !important;
+      overflow: hidden;
+      box-shadow: 0 4px 12px rgba(0,0,0,0.2) !important;
+    }
+  </style>
+</head>
+<body>
+  <div id="map"></div>
+  <script>
+    var map = L.map('map', { zoomControl: false }).setView([${lat}, ${lon}], 16);
+    
+    // Gunakan tile OpenStreetMap dengan nama jalan, gang, dan landmark lengkap
+    L.tileLayer('https://tile.openstreetmap.org/{z}/{x}/{y}.png', {
+      maxZoom: 19,
+      attribution: '&copy; OpenStreetMap'
+    }).addTo(map);
+
+    L.control.zoom({ position: 'topright' }).addTo(map);
+
+    var polyline = L.polyline(${coordsJson}, {
+      color: '#10B981',
+      weight: 5,
+      opacity: 0.95,
+      lineCap: 'round',
+      lineJoin: 'round'
+    }).addTo(map);
+
+    var startCoords = ${startJson};
+    var startMarker = startCoords ? L.marker(startCoords, {
+      icon: L.divIcon({ className: '', html: '<div class="start-badge">MULAI</div>', iconSize: [46, 20], iconAnchor: [23, 10] })
+    }).addTo(map) : null;
+
+    var runnerMarker = L.marker([${lat}, ${lon}], {
+      icon: L.divIcon({ className: '', html: '<div class="runner-marker"></div>', iconSize: [22, 22], iconAnchor: [11, 11] })
+    }).addTo(map);
+
+    window.addEventListener('message', function(e) {
+      if (!e.data || e.data.type !== 'UPDATE_COORDS') return;
+      var cur = e.data.currentLocation;
+      var route = e.data.routeCoordinates;
+      if (cur) {
+        runnerMarker.setLatLng([cur.latitude, cur.longitude]);
+        map.panTo([cur.latitude, cur.longitude], { animate: true, duration: 0.6 });
+      }
+      if (route && route.length > 0) {
+        var latlngs = route.map(function(c) { return [c.latitude, c.longitude]; });
+        polyline.setLatLngs(latlngs);
+        if (!startMarker && route.length > 0) {
+          startMarker = L.marker([route[0].latitude, route[0].longitude], {
+            icon: L.divIcon({ className: '', html: '<div class="start-badge">MULAI</div>', iconSize: [46, 20], iconAnchor: [23, 10] })
+          }).addTo(map);
+        }
+      }
+    });
+  </script>
+</body>
+</html>`;
+  }, [activePosition.latitude, activePosition.longitude]);
 
   return (
     <View style={styles.container}>
-      {/* Grid Pattern Background */}
-      <Svg style={styles.mapCanvas} viewBox="0 0 100 100">
-        <Rect x="0" y="0" width="100" height="100" fill="#0F172A" />
-        {/* Subtle grid lines */}
-        <Line x1="25" y1="0" x2="25" y2="100" stroke="#1E293B" strokeWidth="0.5" />
-        <Line x1="50" y1="0" x2="50" y2="100" stroke="#1E293B" strokeWidth="0.5" />
-        <Line x1="75" y1="0" x2="75" y2="100" stroke="#1E293B" strokeWidth="0.5" />
-        <Line x1="0" y1="25" x2="100" y2="25" stroke="#1E293B" strokeWidth="0.5" />
-        <Line x1="0" y1="50" x2="100" y2="50" stroke="#1E293B" strokeWidth="0.5" />
-        <Line x1="0" y1="75" x2="100" y2="75" stroke="#1E293B" strokeWidth="0.5" />
+      {/* Real OpenStreetMap Leaflet Canvas via iframe on Web */}
+      {React.createElement('iframe', {
+        ref: iframeRef,
+        srcDoc: initialHtml,
+        style: {
+          width: '100%',
+          height: '100%',
+          border: 'none',
+        },
+        title: 'OpenStreetMap GPS Route Tracker',
+      })}
 
-        {/* Real-time Route Trail */}
-        {pointsString.length > 0 && (
-          <SvgPolyline
-            points={pointsString}
-            fill="none"
-            stroke="#10B981"
-            strokeWidth="2.5"
-            strokeLinecap="round"
-            strokeLinejoin="round"
-          />
-        )}
-
-        {/* Center / Pulse Marker */}
-        <Circle cx="50" cy="50" r="4" fill="#10B981" opacity={0.3} />
-        <Circle cx="50" cy="50" r="2" fill="#10B981" />
-      </Svg>
-
-      {/* Floating Header */}
-      <View style={styles.webHeader}>
-        <View style={styles.webTag}>
-          <Navigation size={12} color="#10B981" />
-          <Text style={styles.webTagText}>RADAR RUTE GPS</Text>
-        </View>
-        <Text style={styles.webCoordText}>
-          {currentLocation
-            ? `${currentLocation.latitude.toFixed(4)}°, ${currentLocation.longitude.toFixed(4)}°`
-            : 'Menunggu sinyal GPS...'}
-        </Text>
-      </View>
-
-      {/* Bottom Status Bar */}
-      <View style={styles.statusBar}>
-        <View style={styles.statusDotRow}>
+      {/* Top Tracking Status HUD */}
+      <View style={styles.topHud}>
+        <View style={styles.statusPill}>
           <View
             style={[
-              styles.statusDot,
+              styles.statusPulse,
               { backgroundColor: isTracking ? '#10B981' : '#F59E0B' },
             ]}
           />
-          <Text style={styles.statusText}>
+          <Text style={styles.statusPillText}>
             {isTracking
-              ? `Melacak Rute (${routeCoordinates.length} titik koordinat)`
-              : 'Sensor Siap'}
+              ? `Melacak Rute (${routeCoordinates.length} titik GPS)`
+              : currentLocation
+              ? 'GPS Terkunci • Siap'
+              : 'Mencari Sinyal GPS...'}
           </Text>
         </View>
+
         {accuracy !== undefined && accuracy !== null && (
-          <Text style={styles.accuracyText}>Akurasi: ±{accuracy}m</Text>
+          <View style={styles.accuracyPill}>
+            <Text style={styles.accuracyPillText}>Akurasi: ±{accuracy}m</Text>
+          </View>
         )}
+      </View>
+
+      {/* Bottom Information Footer */}
+      <View style={styles.bottomBar}>
+        <Text style={styles.bottomBarText}>
+          {isTracking
+            ? `🟢 Rute GPS Aktif • Kecepatan: ${speedKmh} km/jam`
+            : 'Peta OpenStreetMap Aktif • Tekan "Mulai Aktivitas" untuk melacak'}
+        </Text>
       </View>
     </View>
   );
@@ -103,86 +193,76 @@ export const ActivityMap: React.FC<ActivityMapProps> = ({
 
 const styles = StyleSheet.create({
   container: {
-    height: 220,
+    height: 280,
     width: '100%',
-    borderRadius: 20,
+    borderRadius: 22,
     overflow: 'hidden',
     backgroundColor: '#0F172A',
-    borderWidth: 1,
+    borderWidth: 1.5,
     borderColor: '#334155',
-    marginVertical: 10,
+    marginVertical: 12,
     position: 'relative',
   },
-  mapCanvas: {
-    ...StyleSheet.absoluteFill,
-  },
-  webHeader: {
+  topHud: {
     position: 'absolute',
-    top: 10,
-    left: 10,
-    right: 10,
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-  },
-  webTag: {
+    top: 12,
+    left: 12,
+    right: 60,
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 4,
-    backgroundColor: 'rgba(16, 185, 129, 0.15)',
-    paddingHorizontal: 8,
-    paddingVertical: 4,
-    borderRadius: 8,
-    borderWidth: 1,
-    borderColor: 'rgba(16, 185, 129, 0.3)',
+    gap: 8,
+    pointerEvents: 'none',
   },
-  webTagText: {
-    fontSize: 10,
-    fontWeight: '800',
-    color: '#10B981',
-  },
-  webCoordText: {
-    fontSize: 10,
-    fontWeight: '600',
-    color: '#94A3B8',
-    backgroundColor: 'rgba(15, 23, 42, 0.8)',
-    paddingHorizontal: 8,
-    paddingVertical: 3,
-    borderRadius: 6,
-  },
-  statusBar: {
-    position: 'absolute',
-    bottom: 8,
-    left: 8,
-    right: 8,
-    backgroundColor: 'rgba(15, 23, 42, 0.85)',
-    borderRadius: 12,
-    paddingHorizontal: 10,
-    paddingVertical: 6,
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    borderWidth: 1,
-    borderColor: 'rgba(255, 255, 255, 0.1)',
-  },
-  statusDotRow: {
+  statusPill: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: 6,
+    backgroundColor: 'rgba(15, 23, 42, 0.9)',
+    paddingHorizontal: 10,
+    paddingVertical: 6,
+    borderRadius: 999,
+    borderWidth: 1,
+    borderColor: 'rgba(255, 255, 255, 0.15)',
   },
-  statusDot: {
+  statusPulse: {
     width: 8,
     height: 8,
     borderRadius: 4,
   },
-  statusText: {
+  statusPillText: {
+    color: '#F8FAFC',
     fontSize: 11,
     fontWeight: '700',
-    color: '#F8FAFC',
   },
-  accuracyText: {
+  accuracyPill: {
+    backgroundColor: 'rgba(15, 23, 42, 0.85)',
+    paddingHorizontal: 8,
+    paddingVertical: 5,
+    borderRadius: 999,
+    borderWidth: 1,
+    borderColor: 'rgba(255, 255, 255, 0.1)',
+  },
+  accuracyPillText: {
+    color: '#94A3B8',
     fontSize: 10,
     fontWeight: '600',
-    color: '#94A3B8',
+  },
+  bottomBar: {
+    position: 'absolute',
+    bottom: 0,
+    left: 0,
+    right: 0,
+    backgroundColor: 'rgba(15, 23, 42, 0.9)',
+    paddingVertical: 6,
+    paddingHorizontal: 12,
+    borderTopWidth: 1,
+    borderTopColor: 'rgba(255, 255, 255, 0.1)',
+    pointerEvents: 'none',
+  },
+  bottomBarText: {
+    color: '#CBD5E1',
+    fontSize: 11,
+    fontWeight: '600',
+    textAlign: 'center',
   },
 });
