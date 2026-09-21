@@ -35,6 +35,18 @@ import { StatusCard } from './src/components/StatusCard';
 import { TelemetryGrid } from './src/components/TelemetryGrid';
 import { HeartRateZonesModal } from './src/components/HeartRateZonesModal';
 import { calculateTelemetry } from './src/utils/telemetry';
+import { ActivityLevel } from './src/types';
+
+// Tingkat Aktivitas Harian (Sedentary, Light, Moderate, Active, Athlete)
+const ACTIVITY_LEVELS: { id: ActivityLevel; label: string; sub: string }[] = [
+  { id: 'sedentary', label: 'Ringan', sub: 'x1.20' },
+  { id: 'light', label: 'Jalan', sub: 'x1.37' },
+  { id: 'moderate', label: 'Sedang', sub: 'x1.55' },
+  { id: 'active', label: 'Aktif', sub: 'x1.72' },
+  { id: 'athlete', label: 'Atlet', sub: 'x1.90' },
+];
+
+const WEIGHT_PRESETS = [55, 65, 70, 75, 85];
 
 // --- Haversine Distance Formula (meter) ---
 function getHaversineDistance(lat1: number, lon1: number, lat2: number, lon2: number): number {
@@ -57,6 +69,7 @@ export default function App() {
   const [age, setAge] = useState<number>(26);
   const [weightKg, setWeightKg] = useState<number>(72.5);
   const [heightCm, setHeightCm] = useState<number>(175);
+  const [activity, setActivity] = useState<ActivityLevel>('moderate');
   const [isHeartZonesOpen, setIsHeartZonesOpen] = useState<boolean>(false);
 
   // PROSES & OUTPUT TELEMETRI LENGKAP:
@@ -66,15 +79,17 @@ export default function App() {
       heightCm,
       weightKg,
       age,
-      gender === 'pria' ? 'male' : 'female'
+      gender === 'pria' ? 'male' : 'female',
+      activity
     );
-  }, [heightCm, weightKg, age, gender]);
+  }, [heightCm, weightKg, age, gender, activity]);
 
   const handleResetBmi = () => {
     setGender('pria');
     setAge(26);
     setHeightCm(175);
     setWeightKg(72.5);
+    setActivity('moderate');
   };
 
   const handleSaveBmi = () => {
@@ -425,28 +440,6 @@ export default function App() {
               </TouchableOpacity>
             </View>
 
-            {/* Input Usia */}
-            <View style={styles.stepperContainer}>
-              <Text style={styles.inputLabel}>USIA (TAHUN)</Text>
-              <View style={styles.stepperRow}>
-                <TouchableOpacity
-                  style={styles.circleBtn}
-                  onPress={() => setAge((a) => Math.max(10, a - 1))}
-                  activeOpacity={0.7}
-                >
-                  <Minus size={18} color="#0F172A" />
-                </TouchableOpacity>
-                <Text style={styles.stepperVal}>{age} thn</Text>
-                <TouchableOpacity
-                  style={styles.circleBtn}
-                  onPress={() => setAge((a) => Math.min(100, a + 1))}
-                  activeOpacity={0.7}
-                >
-                  <Plus size={18} color="#0F172A" />
-                </TouchableOpacity>
-              </View>
-            </View>
-
             {/* Input Tinggi Badan (cm) */}
             <View style={styles.stepperContainer}>
               <Text style={styles.inputLabel}>TINGGI BADAN (CM)</Text>
@@ -469,7 +462,7 @@ export default function App() {
               </View>
             </View>
 
-            {/* Input Berat Badan (kg) */}
+            {/* Input Berat Badan (kg) + Preset Tombol Cepat */}
             <View style={styles.stepperContainer}>
               <Text style={styles.inputLabel}>BERAT BADAN (KG)</Text>
               <View style={styles.stepperRow}>
@@ -488,6 +481,106 @@ export default function App() {
                 >
                   <Plus size={18} color="#0F172A" />
                 </TouchableOpacity>
+              </View>
+
+              {/* Quick Weight Presets */}
+              <View style={styles.presetsRow}>
+                {WEIGHT_PRESETS.map((preset) => (
+                  <TouchableOpacity
+                    key={preset}
+                    style={[
+                      styles.presetBtn,
+                      Math.abs(weightKg - preset) < 0.1 && styles.presetBtnActive,
+                    ]}
+                    onPress={() => setWeightKg(preset)}
+                    activeOpacity={0.7}
+                  >
+                    <Text
+                      style={[
+                        styles.presetBtnText,
+                        Math.abs(weightKg - preset) < 0.1 && styles.presetBtnTextActive,
+                      ]}
+                    >
+                      {preset}
+                    </Text>
+                  </TouchableOpacity>
+                ))}
+              </View>
+            </View>
+
+            {/* Kartu Usia Pengguna & Tingkat Aktivitas Harian */}
+            <View style={styles.activityCard}>
+              {/* Usia Pengguna Row */}
+              <View style={styles.ageRow}>
+                <View style={{ flex: 1 }}>
+                  <Text style={styles.activityCardTitle}>USIA PENGGUNA</Text>
+                  <Text style={styles.activityCardSub}>
+                    Parameter Denyut Jantung Maksimum & BMR
+                  </Text>
+                </View>
+
+                <View style={styles.miniStepperRow}>
+                  <TouchableOpacity
+                    style={styles.miniCircleBtn}
+                    onPress={() => setAge((a) => Math.max(10, a - 1))}
+                    activeOpacity={0.7}
+                  >
+                    <Minus size={14} color="#0F172A" />
+                  </TouchableOpacity>
+                  <Text style={styles.miniStepperVal}>{age}</Text>
+                  <TouchableOpacity
+                    style={styles.miniCircleBtn}
+                    onPress={() => setAge((a) => Math.min(100, a + 1))}
+                    activeOpacity={0.7}
+                  >
+                    <Plus size={14} color="#0F172A" />
+                  </TouchableOpacity>
+                  <Text style={styles.thnLabel}>thn</Text>
+                </View>
+              </View>
+
+              {/* Tingkat Aktivitas Harian Selector */}
+              <View style={styles.activitySection}>
+                <View style={styles.activityHeader}>
+                  <Text style={styles.activityTitle}>TINGKAT AKTIVITAS HARIAN</Text>
+                  <Text style={styles.activityBadge}>
+                    {activity.toUpperCase()}
+                  </Text>
+                </View>
+
+                <View style={styles.activityBtnsGrid}>
+                  {ACTIVITY_LEVELS.map((item) => {
+                    const isSelected = activity === item.id;
+                    return (
+                      <TouchableOpacity
+                        key={item.id}
+                        style={[
+                          styles.activityBtn,
+                          isSelected && styles.activityBtnActive,
+                        ]}
+                        onPress={() => setActivity(item.id)}
+                        activeOpacity={0.8}
+                      >
+                        <Text
+                          style={[
+                            styles.activityBtnLabel,
+                            isSelected && styles.activityBtnLabelActive,
+                          ]}
+                        >
+                          {item.label}
+                        </Text>
+                        <Text
+                          style={[
+                            styles.activityBtnSub,
+                            isSelected && styles.activityBtnSubActive,
+                          ]}
+                        >
+                          {item.sub}
+                        </Text>
+                      </TouchableOpacity>
+                    );
+                  })}
+                </View>
               </View>
             </View>
 
@@ -796,6 +889,143 @@ const styles = StyleSheet.create({
     color: '#475569',
     fontSize: 13,
     fontWeight: '700',
+  },
+  presetsRow: {
+    flexDirection: 'row',
+    gap: 8,
+    marginTop: 8,
+    justifyContent: 'space-between',
+  },
+  presetBtn: {
+    flex: 1,
+    paddingVertical: 7,
+    backgroundColor: '#F8FAFC',
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: '#E2E8F0',
+    alignItems: 'center',
+  },
+  presetBtnActive: {
+    backgroundColor: '#0F172A',
+    borderColor: '#0F172A',
+  },
+  presetBtnText: {
+    fontSize: 12,
+    fontWeight: '700',
+    color: '#475569',
+  },
+  presetBtnTextActive: {
+    color: '#FFFFFF',
+  },
+  activityCard: {
+    backgroundColor: '#FFFFFF',
+    borderRadius: 20,
+    padding: 14,
+    borderWidth: 1,
+    borderColor: '#E2E8F0',
+    marginTop: 10,
+    marginBottom: 4,
+    gap: 12,
+  },
+  ageRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+  },
+  activityCardTitle: {
+    fontSize: 11,
+    fontWeight: '800',
+    color: '#64748B',
+    letterSpacing: 0.5,
+  },
+  activityCardSub: {
+    fontSize: 11,
+    color: '#94A3B8',
+    marginTop: 2,
+  },
+  miniStepperRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+  },
+  miniCircleBtn: {
+    width: 30,
+    height: 30,
+    borderRadius: 15,
+    backgroundColor: '#F1F5F9',
+    justifyContent: 'center',
+    alignItems: 'center',
+    borderWidth: 1,
+    borderColor: '#E2E8F0',
+  },
+  miniStepperVal: {
+    fontSize: 18,
+    fontWeight: '900',
+    color: '#0F172A',
+    width: 32,
+    textAlign: 'center',
+  },
+  thnLabel: {
+    fontSize: 12,
+    fontWeight: '700',
+    color: '#64748B',
+  },
+  activitySection: {
+    paddingTop: 10,
+    borderTopWidth: 1,
+    borderTopColor: '#F1F5F9',
+  },
+  activityHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    marginBottom: 8,
+  },
+  activityTitle: {
+    fontSize: 10,
+    fontWeight: '800',
+    color: '#64748B',
+    letterSpacing: 0.5,
+  },
+  activityBadge: {
+    fontSize: 9,
+    fontWeight: '800',
+    color: '#10B981',
+    letterSpacing: 0.5,
+  },
+  activityBtnsGrid: {
+    flexDirection: 'row',
+    gap: 6,
+  },
+  activityBtn: {
+    flex: 1,
+    backgroundColor: '#F8FAFC',
+    borderRadius: 14,
+    paddingVertical: 8,
+    alignItems: 'center',
+    borderWidth: 1,
+    borderColor: '#E2E8F0',
+  },
+  activityBtnActive: {
+    backgroundColor: '#0F172A',
+    borderColor: '#0F172A',
+  },
+  activityBtnLabel: {
+    fontSize: 11,
+    fontWeight: '800',
+    color: '#475569',
+    marginBottom: 2,
+  },
+  activityBtnLabelActive: {
+    color: '#FFFFFF',
+  },
+  activityBtnSub: {
+    fontSize: 9,
+    fontWeight: '600',
+    color: '#94A3B8',
+  },
+  activityBtnSubActive: {
+    color: 'rgba(255,255,255,0.7)',
   },
   darkCard: {
     backgroundColor: '#0B1C30',
