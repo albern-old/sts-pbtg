@@ -1,0 +1,6 @@
+{
+  "name": "Kinetic Pulse",
+  "description": "High-performance athletic telemetry and biometric health tracking interface.",
+  "requestFramePermissions": ["geolocation"],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}

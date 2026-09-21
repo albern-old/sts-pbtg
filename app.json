@@ -1,0 +1,30 @@
+{
+  "expo": {
+    "name": "Kinetic Pulse",
+    "slug": "kinetic-pulse",
+    "version": "1.0.0",
+    "orientation": "portrait",
+    "userInterfaceStyle": "light",
+    "newArchEnabled": true,
+    "ios": {
+      "supportsTablet": true,
+      "infoPlist": {
+        "NSLocationWhenInUseUsageDescription": "Akses sensor lokasi GPS diperlukan untuk menghitung jarak tempuh dan kecepatan aktivitas olahraga Anda."
+      }
+    },
+    "android": {
+      "permissions": [
+        "ACCESS_COARSE_LOCATION",
+        "ACCESS_FINE_LOCATION"
+      ]
+    },
+    "plugins": [
+      [
+        "expo-location",
+        {
+          "locationAlwaysAndWhenInUsePermission": "Akses sensor lokasi GPS diperlukan untuk menghitung jarak tempuh dan kecepatan aktivitas olahraga Anda."
+        }
+      ]
+    ]
+  }
+}
