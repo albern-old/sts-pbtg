@@ -110,7 +110,7 @@ export function calculateTelemetry(
   }
   const bmr = Math.max(800, Math.round(bmrRaw));
 
-  // TDEE Multipliers
+  // TDEE Multipliers (Standar Harris-Benedict & Mifflin-St Jeor)
   const activityMultipliers: Record<ActivityLevel, number> = {
     sedentary: 1.2,
     light: 1.375,
@@ -118,7 +118,9 @@ export function calculateTelemetry(
     active: 1.725,
     athlete: 1.9,
   };
-  const tdee = Math.round(bmr * (activityMultipliers[activity] || 1.55));
+  const activityMultiplier = activityMultipliers[activity] || 1.55;
+  const tdee = Math.round(bmr * activityMultiplier);
+  const activityCalories = Math.max(0, tdee - bmr);
 
   // Deurenberg Body Fat Formula:
   // Adult %BF = (1.20 × BMI) + (0.23 × Age) - (10.8 × Sex) - 5.4 (Sex: male = 1, female = 0)
@@ -126,8 +128,19 @@ export function calculateTelemetry(
   const bfRaw = 1.2 * bmi + 0.23 * age - 10.8 * sexFactor - 5.4;
   const bodyFatPercentage = Math.max(5, Math.min(60, Math.round(bfRaw * 10) / 10));
 
-  // Hidrasi yang direkomendasikan: ~35ml/kg
-  const waterIntakeLiters = Math.round(((weightKg * 35) / 1000 + 0.3) * 10) / 10;
+  // Hidrasi yang direkomendasikan berbasis Berat Badan & Tingkat Aktivitas (Standar Klinis ACSM & Mayo Clinic)
+  // Base metabolisme: ~35ml/kg
+  // Kompensasi keringat & respirasi latihan:
+  const hydrationBonuses: Record<ActivityLevel, number> = {
+    sedentary: 0.1,
+    light: 0.3,
+    moderate: 0.6,
+    active: 0.9,
+    athlete: 1.4,
+  };
+  const hydrationActivityBonus = hydrationBonuses[activity] || 0.6;
+  const baseWater = (weightKg * 35) / 1000;
+  const waterIntakeLiters = Math.round((baseWater + hydrationActivityBonus) * 10) / 10;
 
   // Max Heart Rate: 220 - Usia
   const maxHeartRate = Math.max(130, 220 - age);
@@ -187,6 +200,10 @@ export function calculateTelemetry(
     weightDeltaToNormal,
     bmr,
     tdee,
+    activityLevel: activity,
+    activityMultiplier,
+    activityCalories,
+    hydrationActivityBonus,
     bodyFatPercentage,
     waterIntakeLiters,
     maxHeartRate,

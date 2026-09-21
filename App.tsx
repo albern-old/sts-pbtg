@@ -34,6 +34,7 @@ import { BodyIllustration } from './src/components/BodyIllustration';
 import { StatusCard } from './src/components/StatusCard';
 import { TelemetryGrid } from './src/components/TelemetryGrid';
 import { HeartRateZonesModal } from './src/components/HeartRateZonesModal';
+import { BiometricInput } from './src/components/BiometricInput';
 import { calculateTelemetry } from './src/utils/telemetry';
 import { ActivityLevel } from './src/types';
 
@@ -440,147 +441,94 @@ export default function App() {
               </TouchableOpacity>
             </View>
 
-            {/* Input Tinggi Badan (cm) */}
-            <View style={styles.stepperContainer}>
-              <Text style={styles.inputLabel}>TINGGI BADAN (CM)</Text>
-              <View style={styles.stepperRow}>
-                <TouchableOpacity
-                  style={styles.circleBtn}
-                  onPress={() => setHeightCm((h) => Math.max(100, h - 1))}
-                  activeOpacity={0.7}
-                >
-                  <Minus size={18} color="#0F172A" />
-                </TouchableOpacity>
-                <Text style={styles.stepperVal}>{heightCm} cm</Text>
-                <TouchableOpacity
-                  style={styles.circleBtn}
-                  onPress={() => setHeightCm((h) => Math.min(230, h + 1))}
-                  activeOpacity={0.7}
-                >
-                  <Plus size={18} color="#0F172A" />
-                </TouchableOpacity>
-              </View>
-            </View>
+            {/* Input Tinggi Badan (cm) - Direct TextInput + Stepper */}
+            <BiometricInput
+              label="TINGGI BADAN"
+              sublabel="Ketik langsung atau gunakan tombol +/-"
+              value={heightCm}
+              unit="cm"
+              min={80}
+              max={240}
+              step={1}
+              decimalPlaces={0}
+              onChange={(val) => setHeightCm(val)}
+              presets={[150, 160, 165, 170, 175, 180]}
+            />
 
-            {/* Input Berat Badan (kg) + Preset Tombol Cepat */}
-            <View style={styles.stepperContainer}>
-              <Text style={styles.inputLabel}>BERAT BADAN (KG)</Text>
-              <View style={styles.stepperRow}>
-                <TouchableOpacity
-                  style={styles.circleBtn}
-                  onPress={() => setWeightKg((w) => Math.max(25, Math.round((w - 0.5) * 10) / 10))}
-                  activeOpacity={0.7}
-                >
-                  <Minus size={18} color="#0F172A" />
-                </TouchableOpacity>
-                <Text style={styles.stepperVal}>{weightKg} kg</Text>
-                <TouchableOpacity
-                  style={styles.circleBtn}
-                  onPress={() => setWeightKg((w) => Math.min(200, Math.round((w + 0.5) * 10) / 10))}
-                  activeOpacity={0.7}
-                >
-                  <Plus size={18} color="#0F172A" />
-                </TouchableOpacity>
-              </View>
+            {/* Input Berat Badan (kg) - Direct TextInput + Stepper + Preset Cepat */}
+            <BiometricInput
+              label="BERAT BADAN"
+              sublabel="Ketik langsung (bisa desimal, misal 72.5)"
+              value={weightKg}
+              unit="kg"
+              min={25}
+              max={200}
+              step={0.5}
+              decimalPlaces={1}
+              onChange={(val) => setWeightKg(val)}
+              presets={WEIGHT_PRESETS}
+            />
 
-              {/* Quick Weight Presets */}
-              <View style={styles.presetsRow}>
-                {WEIGHT_PRESETS.map((preset) => (
-                  <TouchableOpacity
-                    key={preset}
-                    style={[
-                      styles.presetBtn,
-                      Math.abs(weightKg - preset) < 0.1 && styles.presetBtnActive,
-                    ]}
-                    onPress={() => setWeightKg(preset)}
-                    activeOpacity={0.7}
-                  >
-                    <Text
-                      style={[
-                        styles.presetBtnText,
-                        Math.abs(weightKg - preset) < 0.1 && styles.presetBtnTextActive,
-                      ]}
-                    >
-                      {preset}
-                    </Text>
-                  </TouchableOpacity>
-                ))}
-              </View>
-            </View>
+            {/* Input Usia Pengguna (thn) - Direct TextInput + Stepper */}
+            <BiometricInput
+              label="USIA PENGGUNA"
+              sublabel="Parameter Detak Jantung Max & BMR"
+              value={age}
+              unit="thn"
+              min={10}
+              max={110}
+              step={1}
+              decimalPlaces={0}
+              onChange={(val) => setAge(val)}
+              presets={[18, 25, 30, 40, 50]}
+            />
 
-            {/* Kartu Usia Pengguna & Tingkat Aktivitas Harian */}
+            {/* Kartu Tingkat Aktivitas Harian */}
             <View style={styles.activityCard}>
-              {/* Usia Pengguna Row */}
-              <View style={styles.ageRow}>
-                <View style={{ flex: 1 }}>
-                  <Text style={styles.activityCardTitle}>USIA PENGGUNA</Text>
+              <View style={styles.activityHeader}>
+                <View>
+                  <Text style={styles.activityTitle}>TINGKAT AKTIVITAS HARIAN</Text>
                   <Text style={styles.activityCardSub}>
-                    Parameter Denyut Jantung Maksimum & BMR
+                    Mempengaruhi pengeluaran kalori harian (TDEE) & kebutuhan hidrasi
                   </Text>
                 </View>
-
-                <View style={styles.miniStepperRow}>
-                  <TouchableOpacity
-                    style={styles.miniCircleBtn}
-                    onPress={() => setAge((a) => Math.max(10, a - 1))}
-                    activeOpacity={0.7}
-                  >
-                    <Minus size={14} color="#0F172A" />
-                  </TouchableOpacity>
-                  <Text style={styles.miniStepperVal}>{age}</Text>
-                  <TouchableOpacity
-                    style={styles.miniCircleBtn}
-                    onPress={() => setAge((a) => Math.min(100, a + 1))}
-                    activeOpacity={0.7}
-                  >
-                    <Plus size={14} color="#0F172A" />
-                  </TouchableOpacity>
-                  <Text style={styles.thnLabel}>thn</Text>
-                </View>
+                <Text style={styles.activityBadge}>
+                  {activity.toUpperCase()}
+                </Text>
               </View>
 
-              {/* Tingkat Aktivitas Harian Selector */}
-              <View style={styles.activitySection}>
-                <View style={styles.activityHeader}>
-                  <Text style={styles.activityTitle}>TINGKAT AKTIVITAS HARIAN</Text>
-                  <Text style={styles.activityBadge}>
-                    {activity.toUpperCase()}
-                  </Text>
-                </View>
-
-                <View style={styles.activityBtnsGrid}>
-                  {ACTIVITY_LEVELS.map((item) => {
-                    const isSelected = activity === item.id;
-                    return (
-                      <TouchableOpacity
-                        key={item.id}
+              <View style={styles.activityBtnsGrid}>
+                {ACTIVITY_LEVELS.map((item) => {
+                  const isSelected = activity === item.id;
+                  return (
+                    <TouchableOpacity
+                      key={item.id}
+                      style={[
+                        styles.activityBtn,
+                        isSelected && styles.activityBtnActive,
+                      ]}
+                      onPress={() => setActivity(item.id)}
+                      activeOpacity={0.8}
+                    >
+                      <Text
                         style={[
-                          styles.activityBtn,
-                          isSelected && styles.activityBtnActive,
+                          styles.activityBtnLabel,
+                          isSelected && styles.activityBtnLabelActive,
                         ]}
-                        onPress={() => setActivity(item.id)}
-                        activeOpacity={0.8}
                       >
-                        <Text
-                          style={[
-                            styles.activityBtnLabel,
-                            isSelected && styles.activityBtnLabelActive,
-                          ]}
-                        >
-                          {item.label}
-                        </Text>
-                        <Text
-                          style={[
-                            styles.activityBtnSub,
-                            isSelected && styles.activityBtnSubActive,
-                          ]}
-                        >
-                          {item.sub}
-                        </Text>
-                      </TouchableOpacity>
-                    );
-                  })}
-                </View>
+                        {item.label}
+                      </Text>
+                      <Text
+                        style={[
+                          styles.activityBtnSub,
+                          isSelected && styles.activityBtnSubActive,
+                        ]}
+                      >
+                        {item.sub}
+                      </Text>
+                    </TouchableOpacity>
+                  );
+                })}
               </View>
             </View>
 
@@ -608,9 +556,12 @@ export default function App() {
               weightDelta={metrics.weightDeltaToNormal}
             />
 
-            {/* 4. Biometric Performance Matrix (6 Cards Grid) */}
+            {/* 4. Biometric Performance Matrix (6 Cards Grid + Pengaruh Aktivitas) */}
             <TelemetryGrid
               metrics={metrics}
+              currentActivity={activity}
+              onSelectActivity={setActivity}
+              gpsCaloriesBurned={caloriesBurned}
               onOpenHeartZones={() => setIsHeartZonesOpen(true)}
             />
 

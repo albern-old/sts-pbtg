@@ -40,6 +40,10 @@ export interface TelemetryMetrics {
   weightDeltaToNormal: number; // positive = needs to lose, negative = needs to gain, 0 = in range
   bmr: number;
   tdee: number;
+  activityLevel: ActivityLevel;
+  activityMultiplier: number;
+  activityCalories: number;
+  hydrationActivityBonus: number;
   bodyFatPercentage: number;
   waterIntakeLiters: number;
   maxHeartRate: number;
