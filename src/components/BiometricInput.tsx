@@ -8,7 +8,6 @@ import {
   Platform,
 } from 'react-native';
 import { Minus, Plus } from 'lucide-react-native';
-
 interface BiometricInputProps {
   label: string;
   sublabel?: string;
@@ -38,6 +37,7 @@ export const BiometricInput: React.FC<BiometricInputProps> = ({
   presets,
   secondaryBadge,
 }) => {
+
   const [inputText, setInputText] = useState<string>(
     decimalPlaces > 0 ? value.toFixed(decimalPlaces) : Math.round(value).toString()
   );
@@ -255,7 +255,7 @@ const styles = StyleSheet.create({
     width: 32,
     height: 32,
     borderRadius: 10,
-    backgroundColor: '#ECFDF5',
+    backgroundColor: '#EFF6FF',
     alignItems: 'center',
     justifyContent: 'center',
   },
@@ -316,8 +316,8 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
   },
   inputPodFocused: {
-    borderColor: '#10B981',
-    backgroundColor: '#F0FDF4',
+    borderColor: '#3B82F6',
+    backgroundColor: '#EFF6FF',
     borderWidth: 2,
   },
   textInput: {
@@ -368,8 +368,8 @@ const styles = StyleSheet.create({
     borderColor: '#E2E8F0',
   },
   presetChipActive: {
-    backgroundColor: '#10B981',
-    borderColor: '#10B981',
+    backgroundColor: '#3B82F6',
+    borderColor: '#3B82F6',
   },
   presetText: {
     fontSize: 11,

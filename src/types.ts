@@ -20,6 +20,29 @@ export interface BMICategoryInfo {
   athleticAdvice: string;
   nutritionAdvice: string;
   riskNotice: string;
+  genderFocusTitle?: string;
+  obesityStandardNotice?: string;
+}
+
+export interface BodyFatCategoryInfo {
+  status: 'low' | 'optimal' | 'overfat' | 'obese';
+  label: string;
+  badge: string;
+  color: string;
+  thresholdNotice: string;
+  description: string;
+}
+
+export interface GenderPhysiologyInfo {
+  gender: Gender;
+  genderLabel: string;
+  hrFormulaName: string;
+  bodyFatThresholds: string;
+  obesityStandardNotice: string;
+  trainingFocusTitle: string;
+  trainingFocusDesc: string;
+  nutritionFocusTitle: string;
+  nutritionFocusDesc: string;
 }
 
 export interface HeartRateZone {
@@ -30,6 +53,7 @@ export interface HeartRateZone {
   intensity: string;
   color: string;
   description: string;
+  genderTip?: string;
 }
 
 export interface TelemetryMetrics {
@@ -45,9 +69,44 @@ export interface TelemetryMetrics {
   activityCalories: number;
   hydrationActivityBonus: number;
   bodyFatPercentage: number;
+  bodyFatCategory: BodyFatCategoryInfo;
+  genderPhysiology: GenderPhysiologyInfo;
   waterIntakeLiters: number;
   maxHeartRate: number;
   heartRateZones: HeartRateZone[];
+}
+
+export interface BmiHistoryRecord {
+  id: string;
+  timestamp: number;
+  dateFormatted: string;
+  timeFormatted: string;
+  gender: Gender;
+  age: number;
+  heightCm: number;
+  weightKg: number;
+  bmi: number;
+  categoryType: BMICategoryType;
+  categoryLabel: string;
+  categoryColor: string;
+  idealWeightRange: string;
+  bmr: number;
+  tdee: number;
+  bodyFatPercentage: number;
+  bodyFatLabel: string;
+  activityLevel: ActivityLevel;
+}
+
+export interface ActivityHistoryRecord {
+  id: string;
+  timestamp: number;
+  dateFormatted: string;
+  timeFormatted: string;
+  distanceMeters: number;
+  durationSeconds: number;
+  caloriesBurned: number;
+  speedKmh: number;
+  routeCoordinates?: { latitude: number; longitude: number }[];
 }
 
 export interface TelemetrySnapshot {

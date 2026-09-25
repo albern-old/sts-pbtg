@@ -7,15 +7,16 @@ import {
   TouchableOpacity,
   ScrollView,
 } from 'react-native';
-import { Heart, X } from 'lucide-react-native';
-import { HeartRateZone } from '../types';
-
+import { Heart, X, Sparkles, Activity } from 'lucide-react-native';
+import { Gender, HeartRateZone } from '../types';
 interface HeartRateZonesModalProps {
   isOpen: boolean;
   onClose: () => void;
   age: number;
   maxHeartRate: number;
   zones: HeartRateZone[];
+  gender?: Gender;
+  formulaName?: string;
 }
 
 export const HeartRateZonesModal: React.FC<HeartRateZonesModalProps> = ({
@@ -24,7 +25,10 @@ export const HeartRateZonesModal: React.FC<HeartRateZonesModalProps> = ({
   age,
   maxHeartRate,
   zones,
+  gender = 'male',
+  formulaName,
 }) => {
+
   return (
     <Modal
       visible={isOpen}
@@ -40,8 +44,15 @@ export const HeartRateZonesModal: React.FC<HeartRateZonesModalProps> = ({
               <View style={styles.heartIconBox}>
                 <Heart size={20} color="#EF4444" fill="#EF4444" />
               </View>
-              <View>
-                <Text style={styles.modalTitle}>Zona Detak Jantung Latihan</Text>
+              <View style={{ flex: 1 }}>
+                <View style={styles.headerTagRow}>
+                  <Text style={styles.modalTitle}>Zona Detak Jantung Latihan</Text>
+                  <View style={styles.genderBadge}>
+                    <Text style={styles.genderBadgeText}>
+                      {gender === 'male' ? '♂ PRIA' : '♀ WANITA'}
+                    </Text>
+                  </View>
+                </View>
                 <Text style={styles.modalSubtitle}>
                   Usia {age} thn • Denyut Maksimum:{' '}
                   <Text style={{ fontWeight: '800', color: '#0F172A' }}>
@@ -58,6 +69,17 @@ export const HeartRateZonesModal: React.FC<HeartRateZonesModalProps> = ({
             >
               <X size={18} color="#64748B" />
             </TouchableOpacity>
+          </View>
+
+          {/* Formula Attribution Banner */}
+          <View style={styles.formulaBanner}>
+            <Activity size={13} color="#6366F1" />
+            <Text style={styles.formulaText}>
+              {formulaName ||
+                (gender === 'female'
+                  ? 'Formula Klinis Gulati (Standar Wanita: 206 - 0.88×Usia)'
+                  : 'Formula Tanaka (Standar Pria: 208 - 0.7×Usia)')}
+            </Text>
           </View>
 
           {/* List 5 Zones */}
@@ -95,6 +117,19 @@ export const HeartRateZonesModal: React.FC<HeartRateZonesModalProps> = ({
                   </View>
                   <Text style={styles.descText}>{zone.description}</Text>
                 </View>
+
+                {/* Gender Specific Physiological Coaching Tip */}
+                {zone.genderTip && (
+                  <View style={styles.genderTipBox}>
+                    <Sparkles size={11} color="#2563EB" />
+                    <Text style={styles.genderTipText}>
+                      <Text style={{ fontWeight: '800' }}>
+                        Fisiologi {gender === 'male' ? 'Pria' : 'Wanita'}:{' '}
+                      </Text>
+                      {zone.genderTip}
+                    </Text>
+                  </View>
+                )}
               </View>
             ))}
           </ScrollView>
@@ -125,21 +160,19 @@ const styles = StyleSheet.create({
     width: '100%',
     maxHeight: '85%',
     backgroundColor: '#FFFFFF',
-    borderRadius: 28,
-    padding: 20,
+    borderRadius: 24,
+    padding: 18,
     shadowColor: '#000',
     shadowOffset: { width: 0, height: 10 },
-    shadowOpacity: 0.25,
+    shadowOpacity: 0.15,
     shadowRadius: 20,
-    elevation: 10,
+    elevation: 8,
   },
   modalHeader: {
     flexDirection: 'row',
-    alignItems: 'center',
     justifyContent: 'space-between',
-    paddingBottom: 14,
-    borderBottomWidth: 1,
-    borderBottomColor: '#F1F5F9',
+    alignItems: 'center',
+    marginBottom: 8,
   },
   headerLeft: {
     flexDirection: 'row',
@@ -147,68 +180,98 @@ const styles = StyleSheet.create({
     gap: 10,
     flex: 1,
   },
+  headerTagRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    flexWrap: 'wrap',
+  },
   heartIconBox: {
-    width: 38,
-    height: 38,
-    borderRadius: 14,
-    backgroundColor: '#FEF2F2',
+    width: 36,
+    height: 36,
+    borderRadius: 12,
+    backgroundColor: 'rgba(239, 68, 68, 0.1)',
     justifyContent: 'center',
     alignItems: 'center',
   },
   modalTitle: {
-    fontSize: 15,
+    fontSize: 14,
     fontWeight: '800',
     color: '#0F172A',
+  },
+  genderBadge: {
+    backgroundColor: '#0F172A',
+    paddingHorizontal: 5,
+    paddingVertical: 1.5,
+    borderRadius: 4,
+  },
+  genderBadgeText: {
+    color: '#FFFFFF',
+    fontSize: 8.5,
+    fontWeight: '800',
   },
   modalSubtitle: {
     fontSize: 11,
     color: '#64748B',
-    marginTop: 2,
+    marginTop: 1,
   },
   closeBtn: {
-    width: 32,
-    height: 32,
-    borderRadius: 16,
+    padding: 6,
+    borderRadius: 8,
     backgroundColor: '#F1F5F9',
-    justifyContent: 'center',
+  },
+  formulaBanner: {
+    flexDirection: 'row',
     alignItems: 'center',
+    gap: 6,
+    backgroundColor: '#EEF2FF',
+    paddingHorizontal: 10,
+    paddingVertical: 5,
+    borderRadius: 8,
+    marginBottom: 10,
+    borderWidth: 1,
+    borderColor: '#C7D2FE',
+  },
+  formulaText: {
+    color: '#4338CA',
+    fontSize: 9.5,
+    fontWeight: '700',
+    flex: 1,
   },
   zonesScroll: {
-    marginVertical: 12,
+    marginVertical: 4,
   },
   zoneItem: {
     backgroundColor: '#F8FAFC',
-    borderRadius: 18,
-    padding: 12,
+    borderRadius: 14,
+    padding: 10,
+    marginBottom: 8,
     borderWidth: 1,
     borderColor: '#E2E8F0',
-    marginBottom: 8,
   },
   zoneTopRow: {
     flexDirection: 'row',
-    alignItems: 'center',
     justifyContent: 'space-between',
-    marginBottom: 6,
+    alignItems: 'center',
+    marginBottom: 4,
   },
   zoneNameGroup: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 8,
+    gap: 6,
   },
   zoneBadge: {
-    width: 24,
-    height: 24,
-    borderRadius: 12,
-    justifyContent: 'center',
-    alignItems: 'center',
+    paddingHorizontal: 5,
+    paddingVertical: 2,
+    borderRadius: 5,
   },
   zoneBadgeText: {
     color: '#FFFFFF',
-    fontSize: 10,
-    fontWeight: '900',
+    fontSize: 9,
+    fontWeight: '800',
   },
   zoneNameText: {
-    fontSize: 13,
+    fontSize: 12,
     fontWeight: '800',
     color: '#0F172A',
   },
@@ -216,50 +279,64 @@ const styles = StyleSheet.create({
     alignItems: 'flex-end',
   },
   bpmRangeText: {
-    fontSize: 12,
+    fontSize: 11,
     fontWeight: '800',
     color: '#0F172A',
   },
   percentText: {
-    fontSize: 10,
-    fontWeight: '600',
+    fontSize: 9,
     color: '#64748B',
+    fontWeight: '600',
   },
   zoneBottomRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    justifyContent: 'space-between',
-    paddingTop: 6,
-    borderTopWidth: 1,
-    borderTopColor: '#F1F5F9',
-    gap: 8,
+    gap: 6,
+    marginTop: 2,
   },
   intensityPill: {
-    paddingHorizontal: 7,
-    paddingVertical: 3,
-    borderRadius: 6,
+    paddingHorizontal: 5,
+    paddingVertical: 2,
+    borderRadius: 4,
   },
   intensityText: {
     fontSize: 9,
-    fontWeight: '800',
-    textTransform: 'uppercase',
+    fontWeight: '700',
   },
   descText: {
     fontSize: 10,
-    color: '#64748B',
+    color: '#475569',
     flex: 1,
-    textAlign: 'right',
+    lineHeight: 13,
+  },
+  genderTipBox: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    gap: 5,
+    marginTop: 6,
+    paddingTop: 5,
+    borderTopWidth: 1,
+    borderTopColor: '#E2E8F0',
+    backgroundColor: 'rgba(59, 130, 246, 0.05)',
+    padding: 5,
+    borderRadius: 6,
+  },
+  genderTipText: {
+    fontSize: 9.5,
+    color: '#1E40AF',
+    flex: 1,
+    lineHeight: 13,
   },
   doneBtn: {
     backgroundColor: '#0F172A',
-    borderRadius: 16,
-    paddingVertical: 14,
+    borderRadius: 12,
+    paddingVertical: 12,
     alignItems: 'center',
-    marginTop: 6,
+    marginTop: 10,
   },
   doneBtnText: {
     color: '#FFFFFF',
     fontSize: 13,
-    fontWeight: '800',
+    fontWeight: '700',
   },
 });

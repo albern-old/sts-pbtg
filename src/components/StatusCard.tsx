@@ -1,29 +1,41 @@
 import React from 'react';
 import { StyleSheet, View, Text } from 'react-native';
-import { AlertCircle, CheckCircle2, Dumbbell, ShieldAlert, Utensils } from 'lucide-react-native';
-import { BMICategoryInfo } from '../types';
-
+import {
+  AlertCircle,
+  CheckCircle2,
+  Dumbbell,
+  ShieldAlert,
+  Utensils,
+  Zap,
+  Info,
+} from 'lucide-react-native';
+import { BMICategoryInfo, Gender, GenderPhysiologyInfo } from '../types';
 interface StatusCardProps {
   category: BMICategoryInfo;
   weightDelta: number;
+  gender?: Gender;
+  genderPhysiology?: GenderPhysiologyInfo;
 }
 
 export const StatusCard: React.FC<StatusCardProps> = ({
   category,
   weightDelta,
+  gender = 'male',
+  genderPhysiology,
 }) => {
+
   const deltaFormatted = `${Math.abs(weightDelta).toFixed(1)} kg`;
 
   let deltaNotice = 'Massa tubuh berada dalam rentang keseimbangan klinis optimal.';
   if (weightDelta > 0) {
-    deltaNotice = `Telemetri mencatat selisih +${deltaFormatted} di atas batas yang disarankan.`;
+    deltaNotice = `Telemetri mencatat selisih +${deltaFormatted} di atas batas ideal yang disarankan.`;
   } else if (weightDelta < 0) {
     deltaNotice = `Telemetri mencatat selisih -${deltaFormatted} di bawah batas minimum ideal.`;
   }
 
   return (
     <View style={[styles.card, { borderLeftColor: category.color }]}>
-      {/* Header with Status Badge */}
+      {/* Header with Status Badge & Gender Tag */}
       <View style={styles.headerRow}>
         <View style={styles.headerLeft}>
           <View style={[styles.iconCircle, { backgroundColor: category.lightBg }]}>
@@ -36,17 +48,32 @@ export const StatusCard: React.FC<StatusCardProps> = ({
             )}
           </View>
           <View>
-            <Text style={styles.subtitle}>STATUS FISIOLOGIS</Text>
+            <View style={styles.tagRow}>
+              <Text style={styles.subtitle}>STATUS FISIOLOGIS</Text>
+              <View style={styles.genderTag}>
+                <Text style={styles.genderTagText}>
+                  {gender === 'male' ? '♂ PROTOKOL PRIA' : '♀ PROTOKOL WANITA'}
+                </Text>
+              </View>
+            </View>
             <Text style={styles.title}>Analisis Kategori: {category.label}</Text>
           </View>
         </View>
 
         <View style={[styles.rangeBadge, { backgroundColor: category.lightBg }]}>
           <Text style={[styles.rangeBadgeText, { color: category.color }]}>
-            RENTANG: {category.range} BMI
+            {category.range} BMI
           </Text>
         </View>
       </View>
+
+      {/* Focus Protocol Banner if available */}
+      {category.genderFocusTitle && (
+        <View style={styles.protocolBanner}>
+          <Zap size={13} color="#3B82F6" />
+          <Text style={styles.protocolBannerText}>{category.genderFocusTitle}</Text>
+        </View>
+      )}
 
       {/* Summary Message */}
       <Text style={styles.summaryText}>{category.summary}</Text>
@@ -57,30 +84,49 @@ export const StatusCard: React.FC<StatusCardProps> = ({
         <Text style={styles.deltaNoticeText}>{deltaNotice}</Text>
       </View>
 
+      {/* Obesity Standard Notice */}
+      {category.obesityStandardNotice && (
+        <View style={styles.standardNoticeBox}>
+          <Info size={13} color="#6366F1" />
+          <Text style={styles.standardNoticeText}>{category.obesityStandardNotice}</Text>
+        </View>
+      )}
+
       {/* Dual Athletic & Nutrition Recommendation Grid */}
       <View style={styles.dualCardRow}>
-        {/* Rekomendasi Aktivitas Fisik */}
+        {/* Rekomendasi Latihan Fisik Terpersonalisasi Gender */}
         <View style={styles.recCard}>
           <View style={styles.recCardHeader}>
-            <Dumbbell size={14} color="#10B981" />
-            <Text style={[styles.recCardTitle, { color: '#059669' }]}>
-              REKOMENDASI AKTIVITAS FISIK
+            <Dumbbell size={14} color="#3B82F6" />
+            <Text style={[styles.recCardTitle, { color: '#2563EB' }]}>
+              REKOMENDASI LATIHAN {gender === 'male' ? 'PRIA' : 'WANITA'}
             </Text>
           </View>
           <Text style={styles.recCardBody}>{category.athleticAdvice}</Text>
         </View>
 
-        {/* Rekomendasi Pola Nutrisi */}
+        {/* Rekomendasi Pola Nutrisi Terpersonalisasi Gender */}
         <View style={styles.recCard}>
           <View style={styles.recCardHeader}>
             <Utensils size={14} color="#F59E0B" />
             <Text style={[styles.recCardTitle, { color: '#D97706' }]}>
-              REKOMENDASI POLA NUTRISI
+              REKOMENDASI NUTRISI {gender === 'male' ? 'PRIA' : 'WANITA'}
             </Text>
           </View>
           <Text style={styles.recCardBody}>{category.nutritionAdvice}</Text>
         </View>
       </View>
+
+      {/* Profil Risiko Klinis */}
+      {category.riskNotice && (
+        <View style={styles.riskBox}>
+          <ShieldAlert size={12} color="#EF4444" />
+          <Text style={styles.riskText}>
+            <Text style={{ fontWeight: '800' }}>Perhatian Klinis: </Text>
+            {category.riskNotice}
+          </Text>
+        </View>
+      )}
     </View>
   );
 };
@@ -105,7 +151,7 @@ const styles = StyleSheet.create({
     alignItems: 'flex-start',
     justifyContent: 'space-between',
     gap: 8,
-    marginBottom: 10,
+    marginBottom: 8,
   },
   headerLeft: {
     flexDirection: 'row',
@@ -120,11 +166,28 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     alignItems: 'center',
   },
+  tagRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    marginBottom: 2,
+  },
   subtitle: {
-    fontSize: 10,
+    fontSize: 9.5,
     fontWeight: '800',
     color: '#64748B',
     letterSpacing: 0.5,
+  },
+  genderTag: {
+    backgroundColor: '#0F172A',
+    paddingHorizontal: 6,
+    paddingVertical: 1.5,
+    borderRadius: 4,
+  },
+  genderTagText: {
+    color: '#FFFFFF',
+    fontSize: 8.5,
+    fontWeight: '800',
   },
   title: {
     fontSize: 15,
@@ -140,6 +203,24 @@ const styles = StyleSheet.create({
     fontSize: 9,
     fontWeight: '800',
     letterSpacing: 0.3,
+  },
+  protocolBanner: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    backgroundColor: 'rgba(59, 130, 246, 0.08)',
+    borderWidth: 1,
+    borderColor: 'rgba(59, 130, 246, 0.25)',
+    paddingHorizontal: 10,
+    paddingVertical: 6,
+    borderRadius: 8,
+    marginBottom: 10,
+  },
+  protocolBannerText: {
+    color: '#2563EB',
+    fontSize: 10.5,
+    fontWeight: '800',
+    flex: 1,
   },
   summaryText: {
     fontSize: 12,
@@ -157,7 +238,7 @@ const styles = StyleSheet.create({
     borderRadius: 12,
     borderWidth: 1,
     borderColor: '#E2E8F0',
-    marginBottom: 12,
+    marginBottom: 8,
   },
   deltaDot: {
     width: 7,
@@ -169,6 +250,25 @@ const styles = StyleSheet.create({
     fontWeight: '600',
     color: '#475569',
     flex: 1,
+  },
+  standardNoticeBox: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    backgroundColor: '#EEF2FF',
+    paddingHorizontal: 10,
+    paddingVertical: 6,
+    borderRadius: 8,
+    marginBottom: 10,
+    borderWidth: 1,
+    borderColor: '#C7D2FE',
+  },
+  standardNoticeText: {
+    color: '#4338CA',
+    fontSize: 10,
+    fontWeight: '700',
+    flex: 1,
+    lineHeight: 14,
   },
   dualCardRow: {
     gap: 8,
@@ -195,5 +295,22 @@ const styles = StyleSheet.create({
     fontSize: 11,
     color: '#475569',
     lineHeight: 16,
+  },
+  riskBox: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    gap: 6,
+    marginTop: 8,
+    padding: 8,
+    backgroundColor: 'rgba(239, 68, 68, 0.06)',
+    borderRadius: 8,
+    borderWidth: 1,
+    borderColor: 'rgba(239, 68, 68, 0.15)',
+  },
+  riskText: {
+    color: '#991B1B',
+    fontSize: 10,
+    lineHeight: 14,
+    flex: 1,
   },
 });

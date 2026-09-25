@@ -3,7 +3,6 @@ import { StyleSheet, View, Text } from 'react-native';
 import Svg, { Circle, Line, Path } from 'react-native-svg';
 import { BMICategoryInfo, Gender } from '../types';
 import { ArrowDown, ArrowUp, CheckCircle2 } from 'lucide-react-native';
-
 interface BodyIllustrationProps {
   gender: Gender;
   category: BMICategoryInfo;
@@ -23,6 +22,7 @@ export const BodyIllustration: React.FC<BodyIllustrationProps> = ({
   idealWeightMax,
   weightDeltaToNormal,
 }) => {
+
   // Scaling factors for morphing silhouette
   const getSilhouetteScale = () => {
     switch (category.type) {
@@ -146,8 +146,8 @@ export const BodyIllustration: React.FC<BodyIllustrationProps> = ({
                 </>
               ) : (
                 <>
-                  <CheckCircle2 size={14} color="#10B981" />
-                  <Text style={[styles.deltaText, { color: '#059669' }]}>
+                  <CheckCircle2 size={14} color="#3B82F6" />
+                  <Text style={[styles.deltaText, { color: '#2563EB' }]}>
                     Selamat! Berat badan Anda sudah berada dalam rentang ideal prima.
                   </Text>
                 </>
@@ -221,7 +221,7 @@ const styles = StyleSheet.create({
     fontSize: 10,
     fontWeight: '800',
     letterSpacing: 0.5,
-    color: '#059669',
+    color: '#2563EB',
     marginBottom: 3,
   },
   catPill: {

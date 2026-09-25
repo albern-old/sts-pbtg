@@ -1,7 +1,6 @@
 import React, { useEffect, useRef, useMemo } from 'react';
 import { StyleSheet, View, Text } from 'react-native';
 import { ActivityMapProps, Coordinate } from './ActivityMap';
-
 export const ActivityMap: React.FC<ActivityMapProps> = ({
   currentLocation,
   routeCoordinates,
@@ -10,6 +9,7 @@ export const ActivityMap: React.FC<ActivityMapProps> = ({
   speedKmh = 0,
   distanceMeters = 0,
 }) => {
+
   const iframeRef = useRef<HTMLIFrameElement | null>(null);
 
   // Fallback coordinate (Monas / Jakarta Pusat) bila GPS belum resolving
@@ -65,12 +65,12 @@ export const ActivityMap: React.FC<ActivityMapProps> = ({
       width: 22px;
       height: 22px;
       border-radius: 50%;
-      background: #10B981;
+      background: #3B82F6;
       border: 3px solid #FFFFFF;
-      box-shadow: 0 0 15px #10B981, 0 0 25px rgba(16, 185, 129, 0.7);
+      box-shadow: 0 0 15px #3B82F6, 0 0 25px rgba(59, 130, 246, 0.7);
     }
     .start-badge {
-      background: #059669;
+      background: #2563EB;
       color: #FFFFFF;
       font-size: 9px;
       font-weight: 800;
@@ -103,7 +103,7 @@ export const ActivityMap: React.FC<ActivityMapProps> = ({
 
     // Layer garis jejak rute
     var polyline = L.polyline(${coordsJson}, {
-      color: '#10B981',
+      color: '#3B82F6',
       weight: 5,
       opacity: 0.95,
       lineCap: 'round',
@@ -183,7 +183,7 @@ export const ActivityMap: React.FC<ActivityMapProps> = ({
           <View
             style={[
               styles.statusPulse,
-              { backgroundColor: isTracking ? '#10B981' : '#F59E0B' },
+              { backgroundColor: isTracking ? '#3B82F6' : '#F59E0B' },
             ]}
           />
           <Text style={styles.statusPillText}>

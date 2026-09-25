@@ -9,9 +9,11 @@ import {
   Percent,
   ChevronRight,
   Zap,
+  Dumbbell,
+  Utensils,
+  ShieldAlert,
 } from 'lucide-react-native';
 import { ActivityLevel, TelemetryMetrics } from '../types';
-
 interface TelemetryGridProps {
   metrics: TelemetryMetrics;
   currentActivity?: ActivityLevel;
@@ -21,7 +23,7 @@ interface TelemetryGridProps {
 }
 
 const ACTIVITY_QUICK_TABS: { id: ActivityLevel; label: string; mult: string }[] = [
-  { id: 'sedentary', label: 'Istirahat', mult: '1.20x' },
+  { id: 'sedentary', label: 'Santai', mult: '1.20x' },
   { id: 'light', label: 'Ringan', mult: '1.37x' },
   { id: 'moderate', label: 'Sedang', mult: '1.55x' },
   { id: 'active', label: 'Aktif', mult: '1.72x' },
@@ -35,24 +37,37 @@ export const TelemetryGrid: React.FC<TelemetryGridProps> = ({
   gpsCaloriesBurned = 0,
   onOpenHeartZones,
 }) => {
+
+  const isFemale = metrics.genderPhysiology.gender === 'female';
+
   return (
     <View style={styles.container}>
       {/* Section Header */}
       <View style={styles.sectionHeader}>
         <View style={styles.headerLeft}>
           <Text style={styles.sectionTitle}>BIOMETRIC PERFORMANCE MATRIX</Text>
-          <Text style={styles.sectionSub}>Pengaruh Tingkat Aktivitas Fisiologis</Text>
+          <Text style={styles.sectionSub}>
+            Pengaruh Fisiologi {metrics.genderPhysiology.genderLabel} &amp; Tingkat Aktivitas
+          </Text>
         </View>
-        <View style={styles.realtimeBadge}>
-          <Zap size={11} color="#10B981" />
-          <Text style={styles.sectionSubtitle}>Real-Time Derived</Text>
+        <View style={styles.genderMatrixBadge}>
+          <Text style={styles.genderMatrixBadgeText}>
+            {isFemale ? '♀ PROFIL WANITA' : '♂ PROFIL PRIA'}
+          </Text>
         </View>
       </View>
 
       {/* Quick Activity Level Selector inside Matrix */}
       {onSelectActivity && (
         <View style={styles.activitySelectorBox}>
-          <Text style={styles.activitySelectorTitle}>PILIH TINGKAT AKTIVITAS HARIAN:</Text>
+          <View style={styles.activitySelectorHeader}>
+            <Text style={styles.activitySelectorTitle}>PILIH TINGKAT AKTIVITAS HARIAN:</Text>
+            <View style={styles.activitySelectorBadge}>
+              <Text style={styles.activitySelectorBadgeText}>
+                {(ACTIVITY_QUICK_TABS.find((t) => t.id === currentActivity)?.label || currentActivity).toUpperCase()}
+              </Text>
+            </View>
+          </View>
           <ScrollView
             horizontal
             showsHorizontalScrollIndicator={false}
@@ -98,18 +113,18 @@ export const TelemetryGrid: React.FC<TelemetryGridProps> = ({
         {/* Metric 1: Ideal Mass Equilibrium */}
         <View style={styles.metricCard}>
           <View style={styles.cardHeader}>
-            <View style={[styles.iconBox, { backgroundColor: '#ECFDF5' }]}>
-              <Scale size={18} color="#10B981" />
+            <View style={[styles.iconBox, { backgroundColor: '#EFF6FF' }]}>
+              <Scale size={18} color="#3B82F6" />
             </View>
             <View style={styles.targetBadge}>
-              <Text style={styles.targetBadgeText}>TARGET</Text>
+              <Text style={styles.targetBadgeText}>IDEAL {isFemale ? '♀' : '♂'}</Text>
             </View>
           </View>
 
           <View style={styles.cardBody}>
-            <Text style={styles.metricLabel}>IDEAL EQUILIBRIUM</Text>
+            <Text style={styles.metricLabel}>RENTANG BERAT IDEAL</Text>
             <Text style={styles.metricValBig}>{metrics.idealWeightMin} kg</Text>
-            <Text style={styles.metricSub}>to {metrics.idealWeightMax} kg</Text>
+            <Text style={styles.metricSub}>hingga {metrics.idealWeightMax} kg ({isFemale ? 'BMI 18.5–23.5' : 'BMI 19.5–24.5'})</Text>
           </View>
         </View>
 
@@ -127,10 +142,10 @@ export const TelemetryGrid: React.FC<TelemetryGridProps> = ({
           </View>
 
           <View style={styles.cardBody}>
-            <Text style={styles.metricLabel}>DAILY CALORIE BURN</Text>
+            <Text style={styles.metricLabel}>PENGELUARAN KALORI</Text>
             <Text style={styles.metricValBig}>{metrics.tdee.toLocaleString()}</Text>
-            <Text style={[styles.metricSub, { color: '#10B981', fontWeight: '700' }]}>
-              kcal / day
+            <Text style={[styles.metricSub, { color: '#3B82F6', fontWeight: '700' }]}>
+              kkal / hari
             </Text>
 
             {/* Rincian BMR + Kalori Aktivitas */}
@@ -154,36 +169,50 @@ export const TelemetryGrid: React.FC<TelemetryGridProps> = ({
         {/* Metric 3: Basal Metabolic Rate (BMR) */}
         <View style={styles.metricCard}>
           <View style={styles.cardHeader}>
-            <View style={[styles.iconBox, { backgroundColor: '#ECFDF5' }]}>
-              <Activity size={18} color="#10B981" />
+            <View style={[styles.iconBox, { backgroundColor: '#EFF6FF' }]}>
+              <Activity size={18} color="#3B82F6" />
             </View>
             <View style={styles.baseBadge}>
-              <Text style={styles.baseBadgeText}>BASE</Text>
+              <Text style={styles.baseBadgeText}>BMR {isFemale ? '♀' : '♂'}</Text>
             </View>
           </View>
 
           <View style={styles.cardBody}>
-            <Text style={styles.metricLabel}>BASAL METABOLIC (BMR)</Text>
+            <Text style={styles.metricLabel}>METABOLISME BASAL</Text>
             <Text style={styles.metricValBig}>{metrics.bmr.toLocaleString()}</Text>
-            <Text style={styles.metricSub}>kcal idle maintenance</Text>
+            <Text style={styles.metricSub}>
+              Mifflin-St Jeor ({isFemale ? 'Wanita -161 kkal' : 'Pria +5 kkal'})
+            </Text>
           </View>
         </View>
 
-        {/* Metric 4: Body Fat Percentage */}
+        {/* Metric 4: Body Fat Percentage & Gender Status */}
         <View style={styles.metricCard}>
           <View style={styles.cardHeader}>
-            <View style={[styles.iconBox, { backgroundColor: '#F0FDF4' }]}>
-              <Percent size={18} color="#059669" />
+            <View style={[styles.iconBox, { backgroundColor: '#EFF6FF' }]}>
+              <Percent size={18} color="#2563EB" />
             </View>
-            <View style={styles.bfBadge}>
-              <Text style={styles.bfBadgeText}>EST. BF</Text>
+            <View
+              style={[
+                styles.bfBadge,
+                { backgroundColor: `${metrics.bodyFatCategory.color}15`, borderColor: `${metrics.bodyFatCategory.color}40` },
+              ]}
+            >
+              <Text style={[styles.bfBadgeText, { color: metrics.bodyFatCategory.color }]}>
+                {metrics.bodyFatCategory.label}
+              </Text>
             </View>
           </View>
 
           <View style={styles.cardBody}>
-            <Text style={styles.metricLabel}>BODY FAT EST.</Text>
+            <Text style={styles.metricLabel}>ESTIMASI LEMAK TUBUH</Text>
             <Text style={styles.metricValBig}>{metrics.bodyFatPercentage}%</Text>
-            <Text style={styles.metricSub}>Deurenberg Index</Text>
+            <Text style={[styles.metricSub, { color: metrics.bodyFatCategory.color, fontWeight: '700' }]}>
+              {metrics.bodyFatCategory.badge}
+            </Text>
+            <Text style={[styles.metricSub, { fontSize: 9, marginTop: 2 }]}>
+              {metrics.genderPhysiology.bodyFatThresholds}
+            </Text>
           </View>
         </View>
 
@@ -201,10 +230,10 @@ export const TelemetryGrid: React.FC<TelemetryGridProps> = ({
           </View>
 
           <View style={styles.cardBody}>
-            <Text style={styles.metricLabel}>HYDRATION NEED</Text>
+            <Text style={styles.metricLabel}>KEBUTUHAN HIDRASI</Text>
             <Text style={styles.metricValBig}>{metrics.waterIntakeLiters.toFixed(1)} L</Text>
             <Text style={styles.metricSub}>
-              fluid intake / day (intensitas {metrics.activityLevel})
+              cairan harian (intensitas {metrics.activityLevel})
             </Text>
           </View>
         </View>
@@ -220,19 +249,54 @@ export const TelemetryGrid: React.FC<TelemetryGridProps> = ({
               <Heart size={18} color="#EF4444" fill="#EF4444" />
             </View>
             <View style={styles.zonesBadge}>
-              <Text style={styles.zonesBadgeText}>ZONES ›</Text>
+              <Text style={styles.zonesBadgeText}>ZONA HR ›</Text>
             </View>
           </View>
 
           <View style={styles.cardBody}>
-            <Text style={styles.metricLabel}>MAX HEART RATE</Text>
+            <Text style={styles.metricLabel}>DENYUT JANTUNG MAKS</Text>
             <Text style={styles.metricValBig}>{metrics.maxHeartRate} bpm</Text>
+            <Text style={[styles.metricSub, { color: '#6366F1', fontWeight: '700', fontSize: 9.5 }]}>
+              {isFemale ? 'Formula Klinis Gulati' : 'Formula Tanaka'}
+            </Text>
             <View style={styles.viewZonesRow}>
-              <Text style={styles.viewZonesText}>View 5 Training Zones</Text>
-              <ChevronRight size={13} color="#059669" />
+              <Text style={styles.viewZonesText}>5 Zona Latihan Fisiologis</Text>
+              <ChevronRight size={13} color="#2563EB" />
             </View>
           </View>
         </TouchableOpacity>
+      </View>
+
+      {/* Box Protokol Latihan & Obesitas Khusus Gender */}
+      <View style={styles.physiologyOverviewCard}>
+        <View style={styles.overviewHeaderRow}>
+          <View style={styles.overviewTitleGroup}>
+            <Dumbbell size={15} color="#3B82F6" />
+            <Text style={styles.overviewTitle}>
+              {metrics.genderPhysiology.trainingFocusTitle.toUpperCase()}
+            </Text>
+          </View>
+        </View>
+        <Text style={styles.overviewDesc}>{metrics.genderPhysiology.trainingFocusDesc}</Text>
+
+        <View style={styles.overviewDivider} />
+
+        <View style={styles.overviewHeaderRow}>
+          <View style={styles.overviewTitleGroup}>
+            <Utensils size={15} color="#F59E0B" />
+            <Text style={[styles.overviewTitle, { color: '#B45309' }]}>
+              {metrics.genderPhysiology.nutritionFocusTitle.toUpperCase()}
+            </Text>
+          </View>
+        </View>
+        <Text style={styles.overviewDesc}>{metrics.genderPhysiology.nutritionFocusDesc}</Text>
+
+        <View style={styles.obesityCriteriaRow}>
+          <ShieldAlert size={14} color="#EF4444" />
+          <Text style={styles.obesityCriteriaText}>
+            {metrics.genderPhysiology.obesityStandardNotice}
+          </Text>
+        </View>
       </View>
     </View>
   );
@@ -264,21 +328,16 @@ const styles = StyleSheet.create({
     color: '#94A3B8',
     marginTop: 1,
   },
-  realtimeBadge: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 4,
-    backgroundColor: '#ECFDF5',
+  genderMatrixBadge: {
+    backgroundColor: '#0F172A',
     paddingHorizontal: 8,
-    paddingVertical: 3,
+    paddingVertical: 4,
     borderRadius: 8,
-    borderWidth: 1,
-    borderColor: '#A7F3D0',
   },
-  sectionSubtitle: {
-    fontSize: 10,
+  genderMatrixBadgeText: {
+    fontSize: 9.5,
     fontWeight: '800',
-    color: '#10B981',
+    color: '#FFFFFF',
   },
   activitySelectorBox: {
     backgroundColor: '#F8FAFC',
@@ -287,13 +346,33 @@ const styles = StyleSheet.create({
     marginBottom: 12,
     borderWidth: 1,
     borderColor: '#E2E8F0',
+    overflow: 'hidden',
+  },
+  activitySelectorHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    gap: 6,
+    marginBottom: 6,
   },
   activitySelectorTitle: {
     fontSize: 9,
     fontWeight: '800',
     color: '#64748B',
     letterSpacing: 0.6,
-    marginBottom: 6,
+    flex: 1,
+  },
+  activitySelectorBadge: {
+    backgroundColor: '#EFF6FF',
+    paddingHorizontal: 7,
+    paddingVertical: 2,
+    borderRadius: 6,
+    borderWidth: 1, borderColor: '#3B82F6',
+  },
+  activitySelectorBadgeText: {
+    fontSize: 8.5,
+    fontWeight: '800',
+    color: '#2563EB',
   },
   activityTabsRow: {
     flexDirection: 'row',
@@ -309,8 +388,8 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   activityTabBtnActive: {
-    backgroundColor: '#10B981',
-    borderColor: '#059669',
+    backgroundColor: '#3B82F6',
+    borderColor: '#2563EB',
   },
   activityTabLabel: {
     fontSize: 11,
@@ -327,7 +406,7 @@ const styles = StyleSheet.create({
     marginTop: 1,
   },
   activityTabMultActive: {
-    color: '#D1FAE5',
+    color: '#DBEAFE',
   },
   grid: {
     flexDirection: 'row',
@@ -354,8 +433,8 @@ const styles = StyleSheet.create({
     backgroundColor: '#FFFDF5',
   },
   metricCardTouchable: {
-    borderColor: '#A7F3D0',
-    backgroundColor: '#F0FDF4',
+    borderColor: '#BFDBFE',
+    backgroundColor: '#EFF6FF',
   },
   cardHeader: {
     flexDirection: 'row',
@@ -374,8 +453,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: 7,
     paddingVertical: 3,
     borderRadius: 999,
-    borderWidth: 1,
-    borderColor: '#BFDBFE',
+    borderWidth: 1, borderColor: '#3B82F6',
   },
   targetBadgeText: {
     fontSize: 9,
@@ -409,25 +487,21 @@ const styles = StyleSheet.create({
     color: '#64748B',
   },
   bfBadge: {
-    backgroundColor: '#F0FDF4',
     paddingHorizontal: 7,
     paddingVertical: 3,
     borderRadius: 999,
     borderWidth: 1,
-    borderColor: '#BBF7D0',
   },
   bfBadgeText: {
-    fontSize: 9,
+    fontSize: 8.5,
     fontWeight: '800',
-    color: '#059669',
   },
   h2oBadge: {
     backgroundColor: '#EFF6FF',
     paddingHorizontal: 7,
     paddingVertical: 3,
     borderRadius: 999,
-    borderWidth: 1,
-    borderColor: '#BFDBFE',
+    borderWidth: 1, borderColor: '#3B82F6',
   },
   h2oBadgeText: {
     fontSize: 9,
@@ -435,17 +509,16 @@ const styles = StyleSheet.create({
     color: '#2563EB',
   },
   zonesBadge: {
-    backgroundColor: '#ECFDF5',
+    backgroundColor: '#EFF6FF',
     paddingHorizontal: 7,
     paddingVertical: 3,
     borderRadius: 999,
-    borderWidth: 1,
-    borderColor: '#A7F3D0',
+    borderWidth: 1, borderColor: '#3B82F6',
   },
   zonesBadgeText: {
     fontSize: 9,
     fontWeight: '800',
-    color: '#059669',
+    color: '#2563EB',
   },
   cardBody: {
     marginTop: 10,
@@ -476,6 +549,7 @@ const styles = StyleSheet.create({
     backgroundColor: '#FEF3C7',
     borderRadius: 4,
     alignSelf: 'flex-start',
+    maxWidth: '100%',
   },
   breakdownText: {
     fontSize: 9,
@@ -486,24 +560,77 @@ const styles = StyleSheet.create({
     marginTop: 4,
     paddingVertical: 2,
     paddingHorizontal: 5,
-    backgroundColor: '#DCFCE7',
+    backgroundColor: '#DBEAFE',
     borderRadius: 4,
     alignSelf: 'flex-start',
   },
   gpsBonusText: {
     fontSize: 9,
     fontWeight: '800',
-    color: '#15803D',
+    color: '#1D4ED8',
   },
   viewZonesRow: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: 2,
-    marginTop: 2,
+    marginTop: 4,
   },
   viewZonesText: {
     fontSize: 10,
     fontWeight: '700',
-    color: '#059669',
+    color: '#2563EB',
+  },
+  physiologyOverviewCard: {
+    backgroundColor: '#FFFFFF',
+    borderRadius: 20,
+    padding: 14,
+    marginTop: 12,
+    borderWidth: 1,
+    borderColor: '#E2E8F0',
+  },
+  overviewHeaderRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    marginBottom: 4,
+  },
+  overviewTitleGroup: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+  },
+  overviewTitle: {
+    fontSize: 10.5,
+    fontWeight: '800',
+    color: '#2563EB',
+    letterSpacing: 0.3,
+  },
+  overviewDesc: {
+    fontSize: 10.5,
+    color: '#475569',
+    lineHeight: 15,
+  },
+  overviewDivider: {
+    height: 1,
+    backgroundColor: '#F1F5F9',
+    marginVertical: 10,
+  },
+  obesityCriteriaRow: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    gap: 6,
+    marginTop: 10,
+    padding: 8,
+    backgroundColor: '#FEF2F2',
+    borderRadius: 10,
+    borderWidth: 1,
+    borderColor: '#FECACA',
+  },
+  obesityCriteriaText: {
+    fontSize: 10,
+    color: '#991B1B',
+    lineHeight: 14,
+    flex: 1,
+    fontWeight: '600',
   },
 });

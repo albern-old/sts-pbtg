@@ -27,6 +27,9 @@ import {
   CheckCircle2,
   Compass,
   Bookmark,
+  ClipboardList,
+  Zap,
+  Droplets,
 } from 'lucide-react-native';
 import { ActivityMap, Coordinate } from './src/components/ActivityMap';
 import { BmiGauge } from './src/components/BmiGauge';
@@ -34,17 +37,67 @@ import { BodyIllustration } from './src/components/BodyIllustration';
 import { StatusCard } from './src/components/StatusCard';
 import { TelemetryGrid } from './src/components/TelemetryGrid';
 import { HeartRateZonesModal } from './src/components/HeartRateZonesModal';
+import { HistoryModal } from './src/components/HistoryModal';
 import { BiometricInput } from './src/components/BiometricInput';
+import { AnimatedSplash } from './src/components/AnimatedSplash';
 import { calculateTelemetry } from './src/utils/telemetry';
-import { ActivityLevel } from './src/types';
+import { ActivityLevel, BmiHistoryRecord, ActivityHistoryRecord } from './src/types';
+import {
+getBmiHistory,
+  saveBmiHistory,
+  deleteBmiHistoryItem,
+  clearAllBmiHistory,
+  getActivityHistory,
+  saveActivityHistory,
+  deleteActivityHistoryItem,
+  clearAllActivityHistory,
+} from './src/utils/historyStorage';
 
 // Tingkat Aktivitas Harian (Sedentary, Light, Moderate, Active, Athlete)
-const ACTIVITY_LEVELS: { id: ActivityLevel; label: string; sub: string }[] = [
-  { id: 'sedentary', label: 'Ringan', sub: 'x1.20' },
-  { id: 'light', label: 'Jalan', sub: 'x1.37' },
-  { id: 'moderate', label: 'Sedang', sub: 'x1.55' },
-  { id: 'active', label: 'Aktif', sub: 'x1.72' },
-  { id: 'athlete', label: 'Atlet', sub: 'x1.90' },
+interface ActivityLevelItem {
+  id: ActivityLevel;
+  label: string;
+  sub: string;
+  name: string;
+  desc: string;
+}
+
+const ACTIVITY_LEVELS: ActivityLevelItem[] = [
+  {
+    id: 'sedentary',
+    label: 'Santai',
+    sub: 'x1.20',
+    name: 'Santai / Sedentari',
+    desc: 'Banyak duduk, aktivitas harian minim, tanpa olahraga teratur.',
+  },
+  {
+    id: 'light',
+    label: 'Ringan',
+    sub: 'x1.37',
+    name: 'Ringan / Jalan Santai',
+    desc: 'Aktivitas santai, berjalan kaki, atau olahraga ringan 1–3 hari/minggu.',
+  },
+  {
+    id: 'moderate',
+    label: 'Sedang',
+    sub: 'x1.55',
+    name: 'Sedang / Olahraga Rutin',
+    desc: 'Latihan fisik dinamis (jogging, senam, gym) 3–5 hari/minggu.',
+  },
+  {
+    id: 'active',
+    label: 'Aktif',
+    sub: 'x1.72',
+    name: 'Tinggi / Sangat Aktif',
+    desc: 'Latihan fisik berat atau olahraga intensif 6–7 hari/minggu.',
+  },
+  {
+    id: 'athlete',
+    label: 'Atlet',
+    sub: 'x1.90',
+    name: 'Ekstrem / Atletik',
+    desc: 'Latihan fisik kompetitif sangat berat atau intensif 2x sehari.',
+  },
 ];
 
 const WEIGHT_PRESETS = [55, 65, 70, 75, 85];
@@ -63,6 +116,7 @@ function getHaversineDistance(lat1: number, lon1: number, lat2: number, lon2: nu
 }
 
 export default function App() {
+
   // ==========================================
   // BAGIAN 1: INPUT KALKULATOR BMI
   // ==========================================
@@ -72,6 +126,20 @@ export default function App() {
   const [heightCm, setHeightCm] = useState<number>(175);
   const [activity, setActivity] = useState<ActivityLevel>('moderate');
   const [isHeartZonesOpen, setIsHeartZonesOpen] = useState<boolean>(false);
+  const [isHistoryModalOpen, setIsHistoryModalOpen] = useState<boolean>(false);
+  const [showSplash, setShowSplash] = useState<boolean>(true);
+  const [bmiHistory, setBmiHistory] = useState<BmiHistoryRecord[]>([]);
+  const [activityHistory, setActivityHistory] = useState<ActivityHistoryRecord[]>([]);
+
+  // Muat riwayat tersimpan dari penyimpanan lokal saat aplikasi dibuka
+  useEffect(() => {
+    (async () => {
+      const bHistory = await getBmiHistory();
+      setBmiHistory(bHistory);
+      const aHistory = await getActivityHistory();
+      setActivityHistory(aHistory);
+    })();
+  }, []);
 
   // PROSES & OUTPUT TELEMETRI LENGKAP:
   // Menghitung BMI, Kategori WHO, Berat Ideal, BMR, TDEE, Body Fat %, Hidrasi, & Heart Rate Zones
@@ -93,10 +161,61 @@ export default function App() {
     setActivity('moderate');
   };
 
-  const handleSaveBmi = () => {
+  const handleSaveBmi = async () => {
+    const now = new Date();
+    const dateFormatted = now.toLocaleDateString('id-ID', {
+      day: 'numeric',
+      month: 'short',
+      year: 'numeric',
+    });
+    const timeFormatted = now.toLocaleTimeString('id-ID', {
+      hour: '2-digit',
+      minute: '2-digit',
+    });
+
+    const newRecord: BmiHistoryRecord = {
+      id: `bmi-${Date.now()}`,
+      timestamp: Date.now(),
+      dateFormatted,
+      timeFormatted,
+      gender: gender === 'pria' ? 'male' : 'female',
+      age,
+      heightCm,
+      weightKg,
+      bmi: metrics.bmi,
+      categoryType: metrics.category.type,
+      categoryLabel: metrics.category.label,
+      categoryColor: metrics.category.color,
+      idealWeightRange: `${metrics.idealWeightMin} – ${metrics.idealWeightMax} kg`,
+      bmr: metrics.bmr,
+      tdee: metrics.tdee,
+      bodyFatPercentage: metrics.bodyFatPercentage,
+      bodyFatLabel: metrics.bodyFatCategory.label,
+      activityLevel: activity,
+    };
+
+    const updated = await saveBmiHistory(newRecord);
+    setBmiHistory(updated);
+
     Alert.alert(
-      'Riwayat Tersimpan',
-      `Data Biometrik tersimpan:\n• BMI: ${metrics.bmi} (${metrics.category.label})\n• Berat Ideal: ${metrics.idealWeightMin} - ${metrics.idealWeightMax} kg\n• BMR: ${metrics.bmr} kcal\n• TDEE: ${metrics.tdee} kcal\n• Estimasi Lemak: ${metrics.bodyFatPercentage}%`
+      'Riwayat BMI Tersimpan! 🎉',
+      `Data biometrik Anda (${metrics.bmi} BMI • ${metrics.category.label}) berhasil didokumentasikan ke dalam Buku Riwayat.`,
+      [
+        { text: 'Tutup', style: 'cancel' },
+        { text: 'Lihat Riwayat', onPress: () => setIsHistoryModalOpen(true) },
+      ]
+    );
+  };
+
+  const handleRestoreBmiRecord = (record: BmiHistoryRecord) => {
+    setGender(record.gender === 'male' ? 'pria' : 'wanita');
+    setAge(record.age);
+    setHeightCm(record.heightCm);
+    setWeightKg(record.weightKg);
+    setActivity(record.activityLevel);
+    Alert.alert(
+      'Data Dimuat ke Kalkulator',
+      `Data riwayat tanggal ${record.dateFormatted} (${record.weightKg} kg, ${record.heightCm} cm, ${record.bmi} BMI) telah dimuat kembali.`
     );
   };
 
@@ -107,14 +226,17 @@ export default function App() {
   const [distanceMeters, setDistanceMeters] = useState<number>(0);
   const [durationSeconds, setDurationSeconds] = useState<number>(0);
   const [speedKmh, setSpeedKmh] = useState<number>(0);
+  const [caloriesBurned, setCaloriesBurned] = useState<number>(0);
   const [gpsAccuracy, setGpsAccuracy] = useState<number | null>(null);
   const [isSimulation, setIsSimulation] = useState<boolean>(false);
 
   // Koordinat Rute dan Posisi Terkini untuk Peta
   const [currentLocation, setCurrentLocation] = useState<Coordinate | null>(null);
   const [routeCoordinates, setRouteCoordinates] = useState<Coordinate[]>([]);
+  const [isPageScrollEnabled, setIsPageScrollEnabled] = useState<boolean>(true);
 
-  const prevLocationRef = useRef<{ lat: number; lon: number; time: number } | null>(null);
+  const lastRecordedLocationRef = useRef<{ lat: number; lon: number; time: number } | null>(null);
+  const lastPingRef = useRef<{ lat: number; lon: number; time: number } | null>(null);
   const locationSubRef = useRef<Location.LocationSubscription | null>(null);
   const simIntervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
@@ -165,8 +287,15 @@ export default function App() {
         simStep++;
         // Kecepatan jalan santai / jogging ~5.8 km/jam (~1.6 m/s)
         const delta = 1.6 + (Math.random() * 0.3 - 0.15);
+
+        const currentSpeedKmh = delta * 3.6;
+        const isRunning = currentSpeedKmh >= 6.0;
+        const margariaFactor = isRunning ? 1.036 : 0.75;
+        const calAdded = (delta / 1000) * weightKg * margariaFactor;
+
         setDistanceMeters((d) => Math.round((d + delta) * 10) / 10);
-        setSpeedKmh(Math.round(delta * 3.6 * 10) / 10);
+        setSpeedKmh(Math.round(currentSpeedKmh * 10) / 10);
+        setCaloriesBurned((prev) => Math.round((prev + calAdded) * 10) / 10);
         setGpsAccuracy(3);
 
         // Tambahkan koordinat virtual bertahap dengan kelokan rute yang natural
@@ -198,38 +327,7 @@ export default function App() {
     };
   }, [trackerStatus, isSimulation]);
 
-  // Kalori Presisi Tinggi (Standar Klinis ACSM & Formula Kinetik Margaria)
-  const caloriesBurned = useMemo(() => {
-    if (durationSeconds <= 0 && distanceMeters <= 0) return 0;
 
-    const km = distanceMeters / 1000;
-    const durationMinutes = durationSeconds / 60;
-    const durationHours = durationSeconds / 3600;
-
-    // Kecepatan rata-rata aktivitas (km/jam)
-    const avgSpeedKmh = durationHours > 0 && km > 0 ? km / durationHours : speedKmh;
-
-    // 1. Formula Kinetik Margaria (Kerja Mekanik Tubuh per Jarak Tempuh):
-    // - Berjalan (< 6.0 km/jam): ~0.75 kcal/kg/km
-    // - Berlari / Jogging (>= 6.0 km/jam): ~1.036 kcal/kg/km
-    const isRunning = avgSpeedKmh >= 6.0;
-    const margariaFactor = isRunning ? 1.036 : 0.75;
-    const kineticCalories = km * weightKg * margariaFactor;
-
-    // 2. Formula Metabolik ACSM (American College of Sports Medicine):
-    const speedMpm = (avgSpeedKmh * 1000) / 60; // meter per menit
-    let vo2 = 3.5; // Konsumsi oksigen istirahat
-    if (avgSpeedKmh > 0.5) {
-      vo2 = isRunning ? 0.2 * speedMpm + 3.5 : 0.1 * speedMpm + 3.5;
-    }
-    const met = vo2 / 3.5;
-    // Kalori aktif per menit = (MET * 3.5 * weightKg / 200) * durasiMenit
-    const acsmCalories = ((met * 3.5 * weightKg) / 200) * durationMinutes;
-
-    // Mengambil nilai terukur terbaik
-    const totalCalories = Math.max(kineticCalories, acsmCalories);
-    return Math.round(totalCalories * 10) / 10;
-  }, [durationSeconds, distanceMeters, speedKmh, weightKg]);
 
   // Mulai Pelacakan Lokasi Sensor HP saat Jalan / Jogging
   const handleStart = async () => {
@@ -241,7 +339,7 @@ export default function App() {
       setCurrentLocation(defaultStart);
       if (routeCoordinates.length === 0) {
         setRouteCoordinates([defaultStart]);
-        prevLocationRef.current = {
+        lastRecordedLocationRef.current = {
           lat: defaultStart.latitude,
           lon: defaultStart.longitude,
           time: Date.now(),
@@ -249,18 +347,25 @@ export default function App() {
       }
     } else if (routeCoordinates.length === 0) {
       setRouteCoordinates([currentLocation]);
-      prevLocationRef.current = {
+      lastRecordedLocationRef.current = {
         lat: currentLocation.latitude,
         lon: currentLocation.longitude,
         time: Date.now(),
       };
+    } else {
+      // Jika melanjutkan sesi (resume) setelah jeda/pause, segarkan waktu referensi ke waktu sekarang
+      if (lastRecordedLocationRef.current) {
+        lastRecordedLocationRef.current.time = Date.now();
+      }
     }
+    lastPingRef.current = null;
 
     if (isSimulation) return;
 
     try {
       const { status } = await Location.requestForegroundPermissionsAsync();
       if (status !== 'granted') {
+        setTrackerStatus('idle');
         Alert.alert(
           'Izin Lokasi Diperlukan',
           'Aktifkan sensor lokasi HP Anda atau gunakan Mode Simulasi untuk menguji pelacakan rute.'
@@ -280,7 +385,7 @@ export default function App() {
           };
           setCurrentLocation(startCoord);
           setRouteCoordinates([startCoord]);
-          prevLocationRef.current = {
+          lastRecordedLocationRef.current = {
             lat: startCoord.latitude,
             lon: startCoord.longitude,
             time: Date.now(),
@@ -288,7 +393,7 @@ export default function App() {
         }
       } else if (routeCoordinates.length === 0) {
         setRouteCoordinates([currentLocation]);
-        prevLocationRef.current = {
+        lastRecordedLocationRef.current = {
           lat: currentLocation.latitude,
           lon: currentLocation.longitude,
           time: Date.now(),
@@ -298,8 +403,8 @@ export default function App() {
       const sub = await Location.watchPositionAsync(
         {
           accuracy: Location.Accuracy.BestForNavigation,
-          distanceInterval: 1, // Merekam pergerakan setiap 1 meter
-          timeInterval: 1000,   // Evaluasi setiap detik
+          distanceInterval: 0, // Terima pembaruan periodik konsisten agar saat diam speedometer langsung 0 & tidak freeze
+          timeInterval: 1000,  // Evaluasi setiap detik
         },
         (loc) => {
           const { latitude, longitude, accuracy, speed } = loc.coords;
@@ -307,41 +412,91 @@ export default function App() {
           if (accuracy) setGpsAccuracy(Math.round(accuracy));
 
           // 1. FILTER AKURASI SATELIT:
-          // Abaikan sinyal GPS yang sangat kabur (> 40 meter)
-          if (accuracy && accuracy > 40) {
+          // Abaikan sinyal GPS yang sangat kabur (> 35 meter) untuk cegah lompatan liar
+          if (accuracy && accuracy > 35) {
             return;
           }
 
           const newCoord: Coordinate = { latitude, longitude };
           setCurrentLocation(newCoord);
 
-          if (prevLocationRef.current) {
-            const d = getHaversineDistance(
-              prevLocationRef.current.lat,
-              prevLocationRef.current.lon,
-              latitude,
-              longitude
-            );
-            const timeDeltaSec = (now - prevLocationRef.current.time) / 1000;
-            const derivedSpeedMps = timeDeltaSec > 0 ? d / timeDeltaSec : 0;
-
-            // 2. FILTER PERGERAKAN JALAN / JOGGING:
-            // Langkah jalan kaki berkisar 0.8 - 1.4 meter per detik.
-            // d >= 0.8 meter merekam setiap langkah jalan/jogging tanpa lonjakan saat HP diam.
-            // 3. FILTER LOMPATAN SPIKE:
-            // Batasi kecepatan fisik wajar pelari/pejalan (< 14.0 m/s atau ~50 km/jam).
-            if (d >= 0.8 && derivedSpeedMps < 14.0) {
-              setDistanceMeters((prev) => Math.round((prev + d) * 10) / 10);
-              const validSpeedKmh =
-                speed !== null && speed >= 0 ? speed * 3.6 : derivedSpeedMps * 3.6;
-              setSpeedKmh(Math.round(validSpeedKmh * 10) / 10);
-              setRouteCoordinates((coords) => [...coords, newCoord]);
-              prevLocationRef.current = { lat: latitude, lon: longitude, time: now };
+          // 2. HITUNG KECEPATAN INSTAN AKTUAL (m/s):
+          // Prioritas A: Sensor GPS Hardware bawaan HP (Doppler ground speed)
+          // Prioritas B: Jarak pergeseran dari ping sensor terakhir dibagi jeda waktu singkat
+          let currentSpeedMps = 0;
+          if (speed !== null && speed !== undefined && speed >= 0) {
+            currentSpeedMps = speed;
+          } else if (lastPingRef.current) {
+            const pingDeltaSec = (now - lastPingRef.current.time) / 1000;
+            if (pingDeltaSec >= 0.2 && pingDeltaSec <= 5.0) {
+              const pingDist = getHaversineDistance(
+                lastPingRef.current.lat,
+                lastPingRef.current.lon,
+                latitude,
+                longitude
+              );
+              currentSpeedMps = pingDist / pingDeltaSec;
+            } else if (pingDeltaSec > 5.0) {
+              // Jika sensor sempat berhenti mengirim data saat diam, lalu mendeteksi pergerakan kembali
+              const pingDist = getHaversineDistance(
+                lastPingRef.current.lat,
+                lastPingRef.current.lon,
+                latitude,
+                longitude
+              );
+              if (pingDist >= 1.0 && pingDist < 100) {
+                currentSpeedMps = 1.2; // default kecepatan langkah jalan wajar pejalan kaki
+              }
             }
-          } else {
-            // Titik awal pertama
-            prevLocationRef.current = { lat: latitude, lon: longitude, time: now };
+          }
+
+          // Selalu perbarui catatan ping terakhir agar interval waktu antar-ping tidak pernah menumpuk
+          lastPingRef.current = { lat: latitude, lon: longitude, time: now };
+
+          // Titik rekam awal pertama jika belum ada
+          if (!lastRecordedLocationRef.current) {
+            lastRecordedLocationRef.current = { lat: latitude, lon: longitude, time: now };
             setRouteCoordinates([newCoord]);
+            return;
+          }
+
+          // 3. DETEKSI STATUS BERHENTI / DIAM (Anti-Drift):
+          // Bila kecepatan < 0.3 m/s (~1.1 km/jam), pengguna sedang berhenti di tempat.
+          // Nolkan speedometer dan jangan catat pergeseran semu/jitter GPS saat diam.
+          const isUserMoving = currentSpeedMps >= 0.3;
+
+          if (!isUserMoving) {
+            setSpeedKmh(0);
+            return;
+          }
+
+          // 4. JIKA PENGGUNA SEDANG BERJALAN / BERLARI:
+          // Hitung jarak nyata dari titik rute terakhir yang berhasil tersimpan
+          const d = getHaversineDistance(
+            lastRecordedLocationRef.current.lat,
+            lastRecordedLocationRef.current.lon,
+            latitude,
+            longitude
+          );
+
+          // Batasi kecepatan fisik wajar pelari/pejalan (< 14.0 m/s atau ~50 km/jam) untuk cegah GPS spike
+          const isPhysicallyRealistic = currentSpeedMps < 14.0;
+
+          if (d >= 1.0 && isPhysicallyRealistic) {
+            const currentSpeedKmh = Math.round(currentSpeedMps * 3.6 * 10) / 10;
+            const isRunning = currentSpeedKmh >= 6.0;
+            const margariaFactor = isRunning ? 1.036 : 0.75;
+            const calAdded = (d / 1000) * weightKg * margariaFactor;
+
+            setDistanceMeters((prev) => Math.round((prev + d) * 10) / 10);
+            setSpeedKmh(currentSpeedKmh);
+            setCaloriesBurned((prev) => Math.round((prev + calAdded) * 10) / 10);
+            setRouteCoordinates((coords) => [...coords, newCoord]);
+            lastRecordedLocationRef.current = { lat: latitude, lon: longitude, time: now };
+          } else if (isPhysicallyRealistic) {
+            // Pengguna bergerak tapi akumulasi langkah belum 1m (perbarui speedometer)
+            const currentSpeedKmh = Math.round(currentSpeedMps * 3.6 * 10) / 10;
+            setSpeedKmh(currentSpeedKmh);
           }
         }
       );
@@ -358,17 +513,104 @@ export default function App() {
       locationSubRef.current = null;
     }
     setSpeedKmh(0);
+    lastPingRef.current = null;
   };
 
-  const handleReset = () => {
+  const doResetCleanup = () => {
     handlePause();
     setTrackerStatus('idle');
     setDistanceMeters(0);
     setDurationSeconds(0);
     setSpeedKmh(0);
-    prevLocationRef.current = null;
+    setCaloriesBurned(0);
+    lastRecordedLocationRef.current = null;
+    lastPingRef.current = null;
     setRouteCoordinates([]);
     setCurrentLocation(null);
+  };
+
+  const saveGpsSession = async () => {
+    const now = new Date();
+    const dateFormatted = now.toLocaleDateString('id-ID', {
+      day: 'numeric',
+      month: 'short',
+      year: 'numeric',
+    });
+    const timeFormatted = now.toLocaleTimeString('id-ID', {
+      hour: '2-digit',
+      minute: '2-digit',
+    });
+
+    // Hitung kecepatan rata-rata yang lebih akurat untuk riwayat
+    const km = distanceMeters / 1000;
+    const durationHours = durationSeconds / 3600;
+    const avgSpeed =
+      durationHours > 0 && km > 0
+        ? Math.round((km / durationHours) * 10) / 10
+        : speedKmh;
+
+    const actRecord: ActivityHistoryRecord = {
+      id: `act-${Date.now()}`,
+      timestamp: Date.now(),
+      dateFormatted,
+      timeFormatted,
+      distanceMeters,
+      durationSeconds,
+      caloriesBurned,
+      speedKmh: avgSpeed,
+      routeCoordinates: [...routeCoordinates],
+    };
+
+    const updatedActs = await saveActivityHistory(actRecord);
+    setActivityHistory(updatedActs);
+    return actRecord;
+  };
+
+  const handleReset = () => {
+    const hasSignificantData = distanceMeters > 10 || durationSeconds > 10;
+
+    if (hasSignificantData) {
+      // Tampilkan dialog konfirmasi: Simpan sesi ke riwayat GPS atau Buang?
+      const distanceStr = (distanceMeters / 1000).toFixed(2);
+      const durationStr = `${Math.floor(durationSeconds / 60)}m ${durationSeconds % 60}d`;
+      const caloriesStr = caloriesBurned;
+
+      Alert.alert(
+        'Simpan Sesi Aktivitas? 🏃',
+        `Anda telah menempuh ${distanceStr} km dalam ${durationStr} dan membakar ${caloriesStr} kkal.\n\nSimpan ke Riwayat GPS sebelum reset?`,
+        [
+          {
+            text: 'Buang',
+            style: 'destructive',
+            onPress: () => {
+              doResetCleanup();
+            },
+          },
+          {
+            text: 'Simpan & Reset',
+            style: 'default',
+            onPress: async () => {
+              await saveGpsSession();
+              doResetCleanup();
+              Alert.alert(
+                'Aktivitas Tersimpan! 🎉',
+                `Sesi lari/jalan ${distanceStr} km berhasil disimpan ke Riwayat GPS.`,
+                [
+                  { text: 'Tutup', style: 'cancel' },
+                  {
+                    text: 'Lihat Riwayat',
+                    onPress: () => setIsHistoryModalOpen(true),
+                  },
+                ]
+              );
+            },
+          },
+        ]
+      );
+    } else {
+      // Data tidak signifikan, langsung reset tanpa menyimpan
+      doResetCleanup();
+    }
   };
 
   // Cleanup unmount
@@ -389,22 +631,38 @@ export default function App() {
     return `${mins.toString().padStart(2, '0')}:${secs.toString().padStart(2, '0')}`;
   };
 
+  const isResetDisabled = trackerStatus === 'idle' && distanceMeters === 0 && durationSeconds === 0;
+
   return (
-    <SafeAreaProvider>
-      <SafeAreaView style={styles.container}>
-        <StatusBar barStyle="dark-content" backgroundColor="#F8FAFC" />
+    <>
+      {showSplash && <AnimatedSplash onAnimationDone={() => setShowSplash(false)} />}
+      <SafeAreaProvider>
+        <SafeAreaView style={styles.container}>
+          <StatusBar barStyle="dark-content" backgroundColor="#F8FAFC" />
 
         {/* SELURUH FITUR DITAMPILKAN DALAM SATU (1) HALAMAN / SCROLLVIEW */}
-        <ScrollView contentContainerStyle={styles.scrollContent} showsVerticalScrollIndicator={false}>
+        <ScrollView
+          contentContainerStyle={styles.scrollContent}
+          showsVerticalScrollIndicator={false}
+          scrollEnabled={isPageScrollEnabled}
+        >
           {/* Header Aplikasi */}
           <View style={styles.header}>
             <View style={styles.headerIcon}>
-              <Activity size={22} color="#10B981" />
+              <Activity size={22} color="#3B82F6" />
             </View>
             <View style={{ flex: 1 }}>
               <Text style={styles.headerTitle}>Kinetic Pulse</Text>
               <Text style={styles.headerSub}>Kalkulator BMI &amp; Pemantau Jarak Tempuh</Text>
             </View>
+            <TouchableOpacity
+              style={styles.headerHistoryBtn}
+              onPress={() => setIsHistoryModalOpen(true)}
+              activeOpacity={0.8}
+            >
+              <ClipboardList size={14} color="#2563EB" />
+              <Text style={styles.headerHistoryText}>Riwayat ({bmiHistory.length})</Text>
+            </TouchableOpacity>
           </View>
 
           {/* ========================================================= */}
@@ -486,15 +744,17 @@ export default function App() {
             {/* Kartu Tingkat Aktivitas Harian */}
             <View style={styles.activityCard}>
               <View style={styles.activityHeader}>
-                <View>
+                <View style={styles.activityHeaderLeft}>
                   <Text style={styles.activityTitle}>TINGKAT AKTIVITAS HARIAN</Text>
-                  <Text style={styles.activityCardSub}>
+                  <Text style={styles.activityCardSub} numberOfLines={2}>
                     Mempengaruhi pengeluaran kalori harian (TDEE) & kebutuhan hidrasi
                   </Text>
                 </View>
-                <Text style={styles.activityBadge}>
-                  {activity.toUpperCase()}
-                </Text>
+                <View style={styles.activityBadgeContainer}>
+                  <Text style={styles.activityBadge}>
+                    {(ACTIVITY_LEVELS.find((item) => item.id === activity)?.label || activity).toUpperCase()}
+                  </Text>
+                </View>
               </View>
 
               <View style={styles.activityBtnsGrid}>
@@ -515,6 +775,7 @@ export default function App() {
                           styles.activityBtnLabel,
                           isSelected && styles.activityBtnLabelActive,
                         ]}
+                        numberOfLines={1}
                       >
                         {item.label}
                       </Text>
@@ -523,6 +784,7 @@ export default function App() {
                           styles.activityBtnSub,
                           isSelected && styles.activityBtnSubActive,
                         ]}
+                        numberOfLines={1}
                       >
                         {item.sub}
                       </Text>
@@ -530,6 +792,48 @@ export default function App() {
                   );
                 })}
               </View>
+
+              {/* Output Keterangan Aktivitas Terpilih (Pasti Rapi & Terkurung di Dalam Kotak) */}
+              {(() => {
+                const currentItem =
+                  ACTIVITY_LEVELS.find((item) => item.id === activity) || ACTIVITY_LEVELS[2];
+                return (
+                  <View style={styles.activityDetailBox}>
+                    <View style={styles.activityDetailHeader}>
+                      <View style={styles.activityDetailHeaderLeft}>
+                        <Zap size={13} color="#3B82F6" />
+                        <Text style={styles.activityDetailTitle}>
+                          {currentItem.name}
+                        </Text>
+                      </View>
+                      <View style={styles.activityMultiplierPill}>
+                        <Text style={styles.activityMultiplierPillText}>
+                          Pengali {currentItem.sub}
+                        </Text>
+                      </View>
+                    </View>
+
+                    <Text style={styles.activityDetailDesc}>
+                      {currentItem.desc}
+                    </Text>
+
+                    <View style={styles.activityImpactRow}>
+                      <View style={styles.activityImpactChip}>
+                        <Flame size={12} color="#D97706" />
+                        <Text style={styles.activityImpactChipText}>
+                          +{metrics.activityCalories} kkal aktif/hari
+                        </Text>
+                      </View>
+                      <View style={[styles.activityImpactChip, styles.activityImpactChipWater]}>
+                        <Droplets size={12} color="#2563EB" />
+                        <Text style={[styles.activityImpactChipText, { color: '#1D4ED8' }]}>
+                          +{metrics.hydrationActivityBonus} L hidrasi
+                        </Text>
+                      </View>
+                    </View>
+                  </View>
+                );
+              })()}
             </View>
 
             {/* ========================================================= */}
@@ -537,7 +841,12 @@ export default function App() {
             {/* ========================================================= */}
 
             {/* 1. Biometric Telemetry Index Circular Gauge & Spectrum Bar */}
-            <BmiGauge bmi={metrics.bmi} category={metrics.category} />
+            <BmiGauge
+              bmi={metrics.bmi}
+              category={metrics.category}
+              gender={gender === 'pria' ? 'male' : 'female'}
+              bodyFatPercentage={metrics.bodyFatPercentage}
+            />
 
             {/* 2. Rekomendasi Berat Badan Ideal & Morphing Silhouette */}
             <BodyIllustration
@@ -554,6 +863,8 @@ export default function App() {
             <StatusCard
               category={metrics.category}
               weightDelta={metrics.weightDeltaToNormal}
+              gender={gender === 'pria' ? 'male' : 'female'}
+              genderPhysiology={metrics.genderPhysiology}
             />
 
             {/* 4. Biometric Performance Matrix (6 Cards Grid + Pengaruh Aktivitas) */}
@@ -565,23 +876,33 @@ export default function App() {
               onOpenHeartZones={() => setIsHeartZonesOpen(true)}
             />
 
-            {/* 5. Action Buttons: Simpan Riwayat & Reset BMI */}
+            {/* 5. Action Buttons: Simpan Riwayat, Lihat Riwayat & Reset BMI */}
             <View style={styles.actionButtonsRow}>
               <TouchableOpacity
                 style={styles.saveHistoryBtn}
                 onPress={handleSaveBmi}
                 activeOpacity={0.8}
               >
-                <Bookmark size={16} color="#FFFFFF" />
-                <Text style={styles.saveHistoryText}>Simpan Riwayat BMI</Text>
+                <Bookmark size={15} color="#FFFFFF" />
+                <Text style={styles.saveHistoryText}>Simpan BMI</Text>
               </TouchableOpacity>
+
+              <TouchableOpacity
+                style={styles.viewHistoryBtn}
+                onPress={() => setIsHistoryModalOpen(true)}
+                activeOpacity={0.8}
+              >
+                <ClipboardList size={15} color="#1E40AF" />
+                <Text style={styles.viewHistoryText}>Riwayat ({bmiHistory.length})</Text>
+              </TouchableOpacity>
+
               <TouchableOpacity
                 style={styles.resetBmiBtn}
                 onPress={handleResetBmi}
                 activeOpacity={0.8}
               >
-                <RotateCcw size={15} color="#475569" />
-                <Text style={styles.resetBmiText}>Reset BMI</Text>
+                <RotateCcw size={14} color="#475569" />
+                <Text style={styles.resetBmiText}>Reset</Text>
               </TouchableOpacity>
             </View>
           </View>
@@ -592,7 +913,7 @@ export default function App() {
           <View style={styles.darkCard}>
             <View style={styles.darkCardHeader}>
               <View style={styles.navIconBox}>
-                <NavIcon size={20} color="#10B981" />
+                <NavIcon size={20} color="#3B82F6" />
               </View>
               <View style={{ flex: 1 }}>
                 <Text style={styles.darkCardBadge}>BAGIAN 2 • PEMANTAU JARAK TEMPUH</Text>
@@ -616,11 +937,11 @@ export default function App() {
             <View style={styles.runnerGraphicRow}>
               <View style={styles.runnerBox}>
                 <Svg width="50" height="50" viewBox="0 0 50 50">
-                  <Circle cx="28" cy="12" r="5" fill="#10B981" />
-                  <Line x1="26" y1="17" x2="20" y2="30" stroke="#10B981" strokeWidth="4" strokeLinecap="round" />
-                  <Line x1="20" y1="30" x2="30" y2="44" stroke="#10B981" strokeWidth="4" strokeLinecap="round" />
+                  <Circle cx="28" cy="12" r="5" fill="#3B82F6" />
+                  <Line x1="26" y1="17" x2="20" y2="30" stroke="#3B82F6" strokeWidth="4" strokeLinecap="round" />
+                  <Line x1="20" y1="30" x2="30" y2="44" stroke="#3B82F6" strokeWidth="4" strokeLinecap="round" />
                   <Line x1="20" y1="30" x2="10" y2="42" stroke="#34D399" strokeWidth="3" strokeLinecap="round" />
-                  <Line x1="25" y1="20" x2="35" y2="24" stroke="#10B981" strokeWidth="3" strokeLinecap="round" />
+                  <Line x1="25" y1="20" x2="35" y2="24" stroke="#3B82F6" strokeWidth="3" strokeLinecap="round" />
                 </Svg>
               </View>
               <View style={{ flex: 1 }}>
@@ -628,15 +949,15 @@ export default function App() {
                   {trackerStatus === 'tracking'
                     ? 'Sensor Lokasi Berjalan'
                     : trackerStatus === 'paused'
-                    ? 'Sensor Dijeda'
-                    : 'Sensor Siaga'}
+                      ? 'Sensor Dijeda'
+                      : 'Sensor Siaga'}
                 </Text>
                 <Text style={styles.runnerStatusSub}>
                   {isSimulation
                     ? 'Mode simulasi gerak (~8.3 km/jam)'
                     : gpsAccuracy
-                    ? `Akurasi satelit: ±${gpsAccuracy} meter`
-                    : 'Menunggu pergerakan...'}
+                      ? `Akurasi satelit: ±${gpsAccuracy} meter`
+                      : 'Menunggu pergerakan...'}
                 </Text>
               </View>
               {/* Kecepatan Langsung */}
@@ -654,12 +975,13 @@ export default function App() {
               accuracy={gpsAccuracy}
               speedKmh={speedKmh}
               distanceMeters={distanceMeters}
+              onInteractionChange={(interacting) => setIsPageScrollEnabled(!interacting)}
             />
 
             {/* Display Jarak, Durasi, Kalori secara langsung */}
             <View style={styles.telemetryGrid}>
               <View style={styles.telemetryItem}>
-                <MapPin size={16} color="#10B981" />
+                <MapPin size={16} color="#3B82F6" />
                 <Text style={styles.telemetryLabel}>JARAK TEMPUH</Text>
                 <Text style={styles.telemetryValue}>
                   {distanceMeters < 1000
@@ -685,31 +1007,31 @@ export default function App() {
             <View style={styles.btnActionRow}>
               {trackerStatus !== 'tracking' ? (
                 <TouchableOpacity style={styles.btnStart} onPress={handleStart} activeOpacity={0.8}>
-                  <Play size={18} color="#0B1C30" fill="#0B1C30" />
+                  <Play size={18} color="#FFFFFF" fill="#FFFFFF" />
                   <Text style={styles.btnStartText}>Mulai Aktivitas</Text>
                 </TouchableOpacity>
               ) : (
                 <TouchableOpacity style={styles.btnPause} onPress={handlePause} activeOpacity={0.8}>
                   <Pause size={18} color="#0B1C30" fill="#0B1C30" />
-                  <Text style={styles.btnStartText}>Berhenti (Jeda)</Text>
+                  <Text style={styles.btnPauseText}>Berhenti (Jeda)</Text>
                 </TouchableOpacity>
               )}
 
               <TouchableOpacity
-                style={styles.btnReset}
+                style={[styles.btnReset, isResetDisabled && styles.btnResetDisabled]}
                 onPress={handleReset}
-                disabled={trackerStatus === 'idle' && distanceMeters === 0 && durationSeconds === 0}
+                disabled={isResetDisabled}
                 activeOpacity={0.8}
               >
-                <RotateCcw size={16} color="#FFFFFF" />
-                <Text style={styles.btnResetText}>Reset</Text>
+                <RotateCcw size={16} color={isResetDisabled ? '#64748B' : '#FFFFFF'} />
+                <Text style={[styles.btnResetText, isResetDisabled && styles.btnResetTextDisabled]}>Reset</Text>
               </TouchableOpacity>
             </View>
           </View>
 
           {/* Footer Motivasi */}
           <View style={styles.footer}>
-            <Sparkles size={14} color="#10B981" />
+            <Sparkles size={14} color="#3B82F6" />
             <Text style={styles.footerText}>Kinetic Pulse • Telemetri Biometrik & Pemantau GPS</Text>
           </View>
         </ScrollView>
@@ -719,11 +1041,39 @@ export default function App() {
           isOpen={isHeartZonesOpen}
           onClose={() => setIsHeartZonesOpen(false)}
           age={age}
+          gender={gender === 'pria' ? 'male' : 'female'}
           maxHeartRate={metrics.maxHeartRate}
           zones={metrics.heartRateZones}
+          formulaName={metrics.genderPhysiology.hrFormulaName}
+        />
+
+        {/* Modal Buku Riwayat Biometrik & GPS */}
+        <HistoryModal
+          isOpen={isHistoryModalOpen}
+          onClose={() => setIsHistoryModalOpen(false)}
+          bmiHistory={bmiHistory}
+          activityHistory={activityHistory}
+          onDeleteBmiItem={async (id) => {
+            const updated = await deleteBmiHistoryItem(id);
+            setBmiHistory(updated);
+          }}
+          onClearAllBmi={async () => {
+            await clearAllBmiHistory();
+            setBmiHistory([]);
+          }}
+          onDeleteActivityItem={async (id) => {
+            const updated = await deleteActivityHistoryItem(id);
+            setActivityHistory(updated);
+          }}
+          onClearAllActivity={async () => {
+            await clearAllActivityHistory();
+            setActivityHistory([]);
+          }}
+          onRestoreBmiRecord={handleRestoreBmiRecord}
         />
       </SafeAreaView>
     </SafeAreaProvider>
+    </>
   );
 }
 
@@ -754,7 +1104,7 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
     marginBottom: 12,
   },
-  sectionBadge: { fontSize: 11, fontWeight: '800', color: '#10B981', letterSpacing: 0.5 },
+  sectionBadge: { fontSize: 11, fontWeight: '800', color: '#3B82F6', letterSpacing: 0.5 },
   formulaBadge: { fontSize: 10, fontWeight: '600', color: '#64748B' },
   inputLabel: { fontSize: 11, fontWeight: '700', color: '#64748B', marginBottom: 6, textTransform: 'uppercase' },
   genderRow: {
@@ -795,25 +1145,40 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     alignItems: 'center',
     borderWidth: 1,
-    borderColor: '#CBD5E1',
+    borderColor: '#E2E8F0',
   },
   stepperVal: { fontSize: 18, fontWeight: '800', color: '#0F172A' },
+  headerHistoryBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+    backgroundColor: '#EFF6FF',
+    paddingHorizontal: 9,
+    paddingVertical: 6,
+    borderRadius: 999,
+    borderWidth: 1, borderColor: '#3B82F6',
+  },
+  headerHistoryText: {
+    fontSize: 10.5,
+    fontWeight: '800',
+    color: '#2563EB',
+  },
   actionButtonsRow: {
     flexDirection: 'row',
-    gap: 10,
+    gap: 6,
     marginTop: 10,
     width: '100%',
   },
   saveHistoryBtn: {
-    flex: 2,
+    flex: 1.1,
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
-    gap: 8,
-    backgroundColor: '#10B981',
-    paddingVertical: 14,
-    borderRadius: 16,
-    shadowColor: '#10B981',
+    gap: 5,
+    backgroundColor: '#3B82F6',
+    paddingVertical: 13,
+    borderRadius: 14,
+    shadowColor: '#3B82F6',
     shadowOffset: { width: 0, height: 4 },
     shadowOpacity: 0.25,
     shadowRadius: 8,
@@ -821,24 +1186,41 @@ const styles = StyleSheet.create({
   },
   saveHistoryText: {
     color: '#FFFFFF',
-    fontSize: 13,
+    fontSize: 12,
     fontWeight: '800',
   },
-  resetBmiBtn: {
-    flex: 1,
+  viewHistoryBtn: {
+    flex: 1.2,
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
-    gap: 6,
+    gap: 5,
+    backgroundColor: '#EFF6FF',
+    paddingVertical: 13,
+    borderRadius: 14,
+    borderWidth: 1.5,
+    borderColor: '#BFDBFE',
+  },
+  viewHistoryText: {
+    color: '#1E40AF',
+    fontSize: 11.5,
+    fontWeight: '800',
+  },
+  resetBmiBtn: {
+    flex: 0.8,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 4,
     backgroundColor: '#FFFFFF',
-    paddingVertical: 14,
-    borderRadius: 16,
+    paddingVertical: 13,
+    borderRadius: 14,
     borderWidth: 1,
     borderColor: '#E2E8F0',
   },
   resetBmiText: {
     color: '#475569',
-    fontSize: 13,
+    fontSize: 12,
     fontWeight: '700',
   },
   presetsRow: {
@@ -876,15 +1258,22 @@ const styles = StyleSheet.create({
     borderColor: '#E2E8F0',
     marginTop: 10,
     marginBottom: 4,
-    gap: 12,
+    gap: 10,
+    overflow: 'hidden',
   },
-  ageRow: {
+  activityHeader: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
+    gap: 8,
+    marginBottom: 2,
   },
-  activityCardTitle: {
-    fontSize: 11,
+  activityHeaderLeft: {
+    flex: 1,
+    paddingRight: 6,
+  },
+  activityTitle: {
+    fontSize: 10.5,
     fontWeight: '800',
     color: '#64748B',
     letterSpacing: 0.5,
@@ -893,67 +1282,34 @@ const styles = StyleSheet.create({
     fontSize: 11,
     color: '#94A3B8',
     marginTop: 2,
+    lineHeight: 15,
   },
-  miniStepperRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 6,
-  },
-  miniCircleBtn: {
-    width: 30,
-    height: 30,
-    borderRadius: 15,
-    backgroundColor: '#F1F5F9',
-    justifyContent: 'center',
-    alignItems: 'center',
-    borderWidth: 1,
-    borderColor: '#E2E8F0',
-  },
-  miniStepperVal: {
-    fontSize: 18,
-    fontWeight: '900',
-    color: '#0F172A',
-    width: 32,
-    textAlign: 'center',
-  },
-  thnLabel: {
-    fontSize: 12,
-    fontWeight: '700',
-    color: '#64748B',
-  },
-  activitySection: {
-    paddingTop: 10,
-    borderTopWidth: 1,
-    borderTopColor: '#F1F5F9',
-  },
-  activityHeader: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    marginBottom: 8,
-  },
-  activityTitle: {
-    fontSize: 10,
-    fontWeight: '800',
-    color: '#64748B',
-    letterSpacing: 0.5,
+  activityBadgeContainer: {
+    backgroundColor: '#EFF6FF',
+    borderWidth: 1, borderColor: '#3B82F6',
+    paddingHorizontal: 8,
+    paddingVertical: 3.5,
+    borderRadius: 8,
+    alignSelf: 'center',
   },
   activityBadge: {
-    fontSize: 9,
+    fontSize: 9.5,
     fontWeight: '800',
-    color: '#10B981',
-    letterSpacing: 0.5,
+    color: '#2563EB',
+    letterSpacing: 0.3,
   },
   activityBtnsGrid: {
     flexDirection: 'row',
-    gap: 6,
+    gap: 5,
   },
   activityBtn: {
     flex: 1,
     backgroundColor: '#F8FAFC',
-    borderRadius: 14,
+    borderRadius: 12,
     paddingVertical: 8,
+    paddingHorizontal: 2,
     alignItems: 'center',
+    justifyContent: 'center',
     borderWidth: 1,
     borderColor: '#E2E8F0',
   },
@@ -966,6 +1322,7 @@ const styles = StyleSheet.create({
     fontWeight: '800',
     color: '#475569',
     marginBottom: 2,
+    textAlign: 'center',
   },
   activityBtnLabelActive: {
     color: '#FFFFFF',
@@ -974,16 +1331,87 @@ const styles = StyleSheet.create({
     fontSize: 9,
     fontWeight: '600',
     color: '#94A3B8',
+    textAlign: 'center',
   },
   activityBtnSubActive: {
-    color: 'rgba(255,255,255,0.7)',
+    color: 'rgba(255,255,255,0.75)',
+  },
+  activityDetailBox: {
+    backgroundColor: '#F8FAFC',
+    borderRadius: 14,
+    padding: 11,
+    borderWidth: 1,
+    borderColor: '#E2E8F0',
+    gap: 6,
+    marginTop: 2,
+  },
+  activityDetailHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    gap: 6,
+  },
+  activityDetailHeaderLeft: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    flex: 1,
+  },
+  activityDetailTitle: {
+    fontSize: 11,
+    fontWeight: '800',
+    color: '#0F172A',
+  },
+  activityMultiplierPill: {
+    backgroundColor: '#EFF6FF',
+    borderWidth: 1, borderColor: '#3B82F6',
+    paddingHorizontal: 6,
+    paddingVertical: 2,
+    borderRadius: 6,
+  },
+  activityMultiplierPillText: {
+    fontSize: 9,
+    fontWeight: '700',
+    color: '#1D4ED8',
+  },
+  activityDetailDesc: {
+    fontSize: 10.5,
+    color: '#475569',
+    lineHeight: 15,
+  },
+  activityImpactRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    flexWrap: 'wrap',
+    marginTop: 2,
+  },
+  activityImpactChip: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+    backgroundColor: '#FFFBEB',
+    borderWidth: 1,
+    borderColor: '#FDE68A',
+    paddingHorizontal: 7,
+    paddingVertical: 3,
+    borderRadius: 6,
+  },
+  activityImpactChipWater: {
+    backgroundColor: '#EFF6FF',
+    borderColor: '#BFDBFE',
+  },
+  activityImpactChipText: {
+    fontSize: 9.5,
+    fontWeight: '700',
+    color: '#B45309',
   },
   darkCard: {
     backgroundColor: '#0B1C30',
     borderRadius: 24,
     padding: 18,
     borderWidth: 1,
-    borderColor: '#1E293B',
+    borderColor: '#E2E8F0',
   },
   darkCardHeader: {
     flexDirection: 'row',
@@ -995,17 +1423,17 @@ const styles = StyleSheet.create({
     width: 38,
     height: 38,
     borderRadius: 12,
-    backgroundColor: 'rgba(16,185,129,0.15)',
+    backgroundColor: '#EFF6FF',
     justifyContent: 'center',
     alignItems: 'center',
   },
-  darkCardBadge: { fontSize: 10, fontWeight: '800', color: '#10B981', letterSpacing: 0.5 },
-  darkCardTitle: { fontSize: 16, fontWeight: '800', color: '#FFF' },
+  darkCardBadge: { fontSize: 10, fontWeight: '800', color: '#3B82F6', letterSpacing: 0.5 },
+  darkCardTitle: { fontSize: 16, fontWeight: '800', color: '#FFFFFF' },
   simToggleBtn: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: 4,
-    backgroundColor: '#1E293B',
+    backgroundColor: '#FFFFFF',
     paddingHorizontal: 8,
     paddingVertical: 4,
     borderRadius: 999,
@@ -1026,21 +1454,21 @@ const styles = StyleSheet.create({
     width: 50,
     height: 50,
     borderRadius: 12,
-    backgroundColor: '#1E293B',
+    backgroundColor: '#FFFFFF',
     justifyContent: 'center',
     alignItems: 'center',
   },
-  runnerStatusTitle: { fontSize: 14, fontWeight: '800', color: '#FFF' },
+  runnerStatusTitle: { fontSize: 14, fontWeight: '800', color: '#FFFFFF' },
   runnerStatusSub: { fontSize: 11, color: '#94A3B8', marginTop: 2 },
   speedBadge: {
-    backgroundColor: 'rgba(16,185,129,0.15)',
+    backgroundColor: '#EFF6FF',
     paddingHorizontal: 8,
     paddingVertical: 4,
     borderRadius: 10,
     alignItems: 'center',
   },
-  speedVal: { fontSize: 16, fontWeight: '900', color: '#10B981' },
-  speedUnit: { fontSize: 9, fontWeight: '700', color: '#6EE7B7' },
+  speedVal: { fontSize: 16, fontWeight: '900', color: '#3B82F6' },
+  speedUnit: { fontSize: 9, fontWeight: '700', color: '#93C5FD' },
   telemetryGrid: { flexDirection: 'row', gap: 8, marginBottom: 14 },
   telemetryItem: {
     flex: 1,
@@ -1050,13 +1478,13 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   telemetryLabel: { fontSize: 9, fontWeight: '700', color: '#94A3B8', marginTop: 4 },
-  telemetryValue: { fontSize: 16, fontWeight: '900', color: '#FFF', marginTop: 2 },
+  telemetryValue: { fontSize: 16, fontWeight: '900', color: '#FFFFFF', marginTop: 2 },
   btnActionRow: { flexDirection: 'row', gap: 10 },
   btnStart: {
     flex: 1,
     height: 50,
     borderRadius: 999,
-    backgroundColor: '#10B981',
+    backgroundColor: '#3B82F6',
     flexDirection: 'row',
     justifyContent: 'center',
     alignItems: 'center',
@@ -1072,18 +1500,26 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     gap: 8,
   },
-  btnStartText: { color: '#0B1C30', fontSize: 15, fontWeight: '800' },
+  btnStartText: { color: '#FFFFFF', fontSize: 15, fontWeight: '800' },
+  btnPauseText: { color: '#0B1C30', fontSize: 15, fontWeight: '800' },
   btnReset: {
     paddingHorizontal: 20,
     height: 50,
     borderRadius: 999,
     backgroundColor: '#1E293B',
+    borderWidth: 1.5,
+    borderColor: '#334155',
     flexDirection: 'row',
     justifyContent: 'center',
     alignItems: 'center',
     gap: 6,
   },
-  btnResetText: { color: '#FFF', fontSize: 14, fontWeight: '700' },
+  btnResetDisabled: {
+    opacity: 0.45,
+    borderColor: '#1E293B',
+  },
+  btnResetText: { color: '#FFFFFF', fontSize: 14, fontWeight: '700' },
+  btnResetTextDisabled: { color: '#64748B' },
   footer: {
     flexDirection: 'row',
     justifyContent: 'center',

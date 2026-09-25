@@ -1,14 +1,21 @@
 import React from 'react';
 import { StyleSheet, View, Text } from 'react-native';
 import Svg, { Circle, Defs, LinearGradient, Stop } from 'react-native-svg';
-import { BMICategoryInfo } from '../types';
-
+import { BMICategoryInfo, Gender } from '../types';
 interface BmiGaugeProps {
   bmi: number;
   category: BMICategoryInfo;
+  gender?: Gender;
+  bodyFatPercentage?: number;
 }
 
-export const BmiGauge: React.FC<BmiGaugeProps> = ({ bmi, category }) => {
+export const BmiGauge: React.FC<BmiGaugeProps> = ({
+  bmi,
+  category,
+  gender = 'male',
+  bodyFatPercentage,
+}) => {
+
   // SVG circular progress halo geometry
   const radius = 64;
   const strokeWidth = 10;
@@ -43,11 +50,13 @@ export const BmiGauge: React.FC<BmiGaugeProps> = ({ bmi, category }) => {
 
   return (
     <View style={styles.card}>
-      {/* Header Telemetry Subtitle */}
+      {/* Header Telemetry Subtitle with Gender Indicator */}
       <View style={styles.headerRow}>
         <View style={styles.headerLeft}>
           <View style={[styles.headerDot, { backgroundColor: category.color }]} />
-          <Text style={styles.headerTitle}>BIOMETRIC TELEMETRY INDEX</Text>
+          <Text style={styles.headerTitle}>
+            BIOMETRIC TELEMETRY • {gender === 'male' ? '♂ PRIA' : '♀ WANITA'}
+          </Text>
         </View>
         <View style={[styles.badgeContainer, { backgroundColor: category.lightBg }]}>
           <Text style={[styles.badgeText, { color: category.color }]}>{category.badge}</Text>
@@ -59,7 +68,7 @@ export const BmiGauge: React.FC<BmiGaugeProps> = ({ bmi, category }) => {
         <Svg width={160} height={160} viewBox="0 0 160 160">
           <Defs>
             <LinearGradient id="normalGradient" x1="0%" y1="0%" x2="100%" y2="100%">
-              <Stop offset="0%" stopColor="#10B981" />
+              <Stop offset="0%" stopColor="#3B82F6" />
               <Stop offset="100%" stopColor="#84CC16" />
             </LinearGradient>
           </Defs>
@@ -116,7 +125,7 @@ export const BmiGauge: React.FC<BmiGaugeProps> = ({ bmi, category }) => {
         {/* The 4 Spectrum Segment Bars */}
         <View style={styles.barsRow}>
           <View style={[styles.barSegment, { backgroundColor: '#3B82F6', borderTopLeftRadius: 6, borderBottomLeftRadius: 6 }]} />
-          <View style={[styles.barSegment, { backgroundColor: '#10B981' }]} />
+          <View style={[styles.barSegment, { backgroundColor: '#3B82F6' }]} />
           <View style={[styles.barSegment, { backgroundColor: '#F59E0B' }]} />
           <View style={[styles.barSegment, { backgroundColor: '#EF4444', borderTopRightRadius: 6, borderBottomRightRadius: 6 }]} />
         </View>
@@ -129,7 +138,7 @@ export const BmiGauge: React.FC<BmiGaugeProps> = ({ bmi, category }) => {
           </View>
           <View style={styles.labelCol}>
             <Text style={styles.labelTextNum}>24.9</Text>
-            <Text style={[styles.labelTextCategory, { color: '#10B981' }]}>NORMAL</Text>
+            <Text style={[styles.labelTextCategory, { color: '#3B82F6' }]}>NORMAL</Text>
           </View>
           <View style={styles.labelCol}>
             <Text style={styles.labelTextNum}>29.9</Text>
@@ -141,6 +150,54 @@ export const BmiGauge: React.FC<BmiGaugeProps> = ({ bmi, category }) => {
           </View>
         </View>
       </View>
+
+      {/* Box Kriteria Fisiologis Obesitas Spesifik Gender */}
+      <View style={styles.genderStandardBox}>
+        <View style={styles.genderStandardHeader}>
+          <Text style={styles.genderStandardTitle}>
+            {gender === 'male' ? '♂ AMBANG OBESITAS PRIA' : '♀ AMBANG OBESITAS WANITA'}
+          </Text>
+          <View style={styles.genderPill}>
+            <Text style={styles.genderPillText}>
+              {gender === 'male' ? 'Lemak Obesitas: ≥ 25%' : 'Lemak Obesitas: ≥ 32%'}
+            </Text>
+          </View>
+        </View>
+        <Text style={styles.genderStandardDesc}>
+          {gender === 'male'
+            ? 'Pria memiliki densitas otot lebih tinggi. Batas obesitas klinis: Lemak Tubuh ≥ 25% atau Lingkar Perut > 90 cm (Pola Lemak Viseral Intra-Abdominal).'
+            : 'Wanita secara alami membutuhkan lemak esensial 10%–13% untuk hormon reproduksi. Batas obesitas klinis: Lemak Tubuh ≥ 32% atau Lingkar Perut > 80 cm.'}
+        </Text>
+        {bodyFatPercentage !== undefined && (
+          <View style={styles.currentBfRow}>
+            <Text style={styles.currentBfLabel}>Estimasi Lemak Tubuh Anda:</Text>
+            <Text
+              style={[
+                styles.currentBfVal,
+                {
+                  color:
+                    (gender === 'male' && bodyFatPercentage >= 25) ||
+                    (gender === 'female' && bodyFatPercentage >= 32)
+                      ? '#EF4444'
+                      : (gender === 'male' && bodyFatPercentage >= 21) ||
+                        (gender === 'female' && bodyFatPercentage >= 29)
+                      ? '#F59E0B'
+                      : '#3B82F6',
+                },
+              ]}
+            >
+              {bodyFatPercentage}%{' '}
+              {(gender === 'male' && bodyFatPercentage >= 25) ||
+              (gender === 'female' && bodyFatPercentage >= 32)
+                ? '• Obesitas Lemak'
+                : (gender === 'male' && bodyFatPercentage >= 21) ||
+                  (gender === 'female' && bodyFatPercentage >= 29)
+                ? '• Di Atas Ideal'
+                : '• Rentang Sehat'}
+            </Text>
+          </View>
+        )}
+      </View>
     </View>
   );
 };
@@ -149,30 +206,26 @@ const styles = StyleSheet.create({
   card: {
     backgroundColor: '#FFFFFF',
     borderRadius: 24,
-    padding: 18,
+    padding: 20,
     borderWidth: 1,
     borderColor: '#E2E8F0',
     shadowColor: '#0F172A',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.04,
-    shadowRadius: 10,
-    elevation: 2,
-    alignItems: 'center',
-    marginVertical: 6,
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.05,
+    shadowRadius: 12,
+    elevation: 3,
+    marginVertical: 8,
   },
   headerRow: {
-    width: '100%',
     flexDirection: 'row',
-    alignItems: 'center',
     justifyContent: 'space-between',
-    paddingBottom: 12,
-    borderBottomWidth: 1,
-    borderBottomColor: '#F1F5F9',
+    alignItems: 'center',
+    marginBottom: 8,
   },
   headerLeft: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 8,
+    gap: 6,
   },
   headerDot: {
     width: 8,
@@ -180,23 +233,23 @@ const styles = StyleSheet.create({
     borderRadius: 4,
   },
   headerTitle: {
-    fontSize: 11,
+    fontSize: 10.5,
     fontWeight: '800',
-    letterSpacing: 0.5,
+    letterSpacing: 0.6,
     color: '#64748B',
   },
   badgeContainer: {
-    paddingHorizontal: 10,
-    paddingVertical: 4,
+    paddingHorizontal: 8,
+    paddingVertical: 3,
     borderRadius: 999,
   },
   badgeText: {
     fontSize: 10,
     fontWeight: '800',
     textTransform: 'uppercase',
-    letterSpacing: 0.5,
   },
   gaugeContainer: {
+    alignSelf: 'center',
     width: 160,
     height: 160,
     alignItems: 'center',
@@ -243,7 +296,7 @@ const styles = StyleSheet.create({
   spectrumIdeal: {
     fontSize: 10,
     fontWeight: '700',
-    color: '#10B981',
+    color: '#3B82F6',
   },
   spectrumContainer: {
     width: '100%',
@@ -311,5 +364,59 @@ const styles = StyleSheet.create({
     fontSize: 9,
     fontWeight: '800',
     letterSpacing: 0.3,
+  },
+  genderStandardBox: {
+    marginTop: 14,
+    padding: 10,
+    backgroundColor: '#F8FAFC',
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: '#E2E8F0',
+  },
+  genderStandardHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 4,
+  },
+  genderStandardTitle: {
+    fontSize: 10,
+    fontWeight: '900',
+    color: '#0F172A',
+    letterSpacing: 0.4,
+  },
+  genderPill: {
+    backgroundColor: '#0F172A',
+    paddingHorizontal: 6,
+    paddingVertical: 2,
+    borderRadius: 4,
+  },
+  genderPillText: {
+    color: '#FFFFFF',
+    fontSize: 9,
+    fontWeight: '800',
+  },
+  genderStandardDesc: {
+    fontSize: 10,
+    color: '#64748B',
+    lineHeight: 14,
+  },
+  currentBfRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginTop: 6,
+    paddingTop: 6,
+    borderTopWidth: 1,
+    borderTopColor: '#E2E8F0',
+  },
+  currentBfLabel: {
+    fontSize: 10,
+    fontWeight: '700',
+    color: '#475569',
+  },
+  currentBfVal: {
+    fontSize: 10.5,
+    fontWeight: '900',
   },
 });
