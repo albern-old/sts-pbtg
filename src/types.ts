@@ -97,6 +97,8 @@ export interface BmiHistoryRecord {
   activityLevel: ActivityLevel;
 }
 
+export type ActivityType = 'lari' | 'jalan' | 'sepeda';
+
 export interface ActivityHistoryRecord {
   id: string;
   timestamp: number;
@@ -107,6 +109,8 @@ export interface ActivityHistoryRecord {
   caloriesBurned: number;
   speedKmh: number;
   routeCoordinates?: { latitude: number; longitude: number }[];
+  activityType?: ActivityType;
+  elevationGainMeters?: number;
 }
 
 export interface TelemetrySnapshot {

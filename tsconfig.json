@@ -5,6 +5,7 @@
   },
   "exclude": [
     "web-backup",
+    "dist",
     "node_modules"
   ]
 }
