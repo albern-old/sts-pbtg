@@ -29,6 +29,10 @@ export function formatDateId(date: Date): { dateFormatted: string; timeFormatted
   };
 }
 
+export function formatCalories(calories: number): string {
+  return `${calories.toLocaleString('id-ID')}`;
+}
+
 // Rata-rata pace "m/dtk per km" → "6'11\""
 export function formatPace(distanceMeters: number, durationSeconds: number): string {
   if (distanceMeters < 10 || durationSeconds <= 0) return "–'––\"";

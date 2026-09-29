@@ -20,6 +20,7 @@ import { formatDistance, formatDurationLong, formatDurationShort, formatPace } f
 import { colors } from '../theme/colors';
 import { fonts } from '../theme/typography';
 import type { TabKey } from '../navigation/RootTabs';
+import { formatCalories } from '../utils/format';
 
 const WEEK_TARGET_KM = 20;
 
@@ -61,6 +62,7 @@ export const HomeScreen: React.FC<Props> = ({
     day: 'numeric',
     month: 'short',
   });
+  const formattedCalories = formatCalories(weekCalories);
 
   return (
     <ScrollView
@@ -162,7 +164,7 @@ export const HomeScreen: React.FC<Props> = ({
             </View>
           </View>
           <View style={styles.metricValueRow}>
-            <Text style={styles.metricValue}>{weekCalories}</Text>
+            <Text style={styles.metricValue}>{formattedCalories}</Text>
             <Text style={styles.metricUnit}>kkal</Text>
           </View>
           <Text style={styles.metricSub}>Rekap sesi GPS pekan ini</Text>
@@ -187,13 +189,7 @@ export const HomeScreen: React.FC<Props> = ({
       {/* Saran kebugaran — judul + toggle + kotak highlight */}
       <View style={styles.tipCard}>
         <View style={styles.tipHead}>
-          <Text style={styles.tipTitle}>Sudah Sarapan</Text>
-          <Switch
-            value={hadBreakfast}
-            onValueChange={setHadBreakfast}
-            trackColor={{ false: colors.outlineVariant, true: 'rgba(0,105,72,0.35)' }}
-            thumbColor={hadBreakfast ? colors.primary : '#f4f3f4'}
-          />
+          <Text style={styles.tipTitle}>Sudah Sarapan? Pastikan anda sudah makan.</Text>
         </View>
         <Text style={styles.tipBody}>
           {hadBreakfast
