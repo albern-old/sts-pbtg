@@ -10,6 +10,7 @@ import {
 } from '@expo-google-fonts/plus-jakarta-sans';
 import { SplashScreen } from './src/components/organisms/SplashScreen';
 import { DialogHost } from './src/components/organisms/DialogHost';
+import { RootErrorBoundary } from './src/components/organisms/RootErrorBoundary';
 import { RootTabs, TabKey } from './src/navigation/RootTabs';
 import { CalculatorScreen } from './src/screens/CalculatorScreen';
 import { HistoryScreen } from './src/screens/HistoryScreen';
@@ -23,22 +24,28 @@ import { colors } from './src/theme/colors';
 
 const HASH_TABS: TabKey[] = ['home', 'calculator', 'tracker', 'history'];
 
+// URL hash — hanya ada di web. React Native TIDAK punya window.location,
+// jadi wajib di-guard (dulu: TypeError → crash saat app dibuka di Android).
+function webHash(): string {
+  if (typeof window === 'undefined') return '';
+  const loc = window.location;
+  if (!loc || typeof loc.hash !== 'string') return '';
+  return loc.hash.replace('#', '');
+}
+
 // Membuka tab tertentu lewat URL hash (mis. /#tracker) — untuk verifikasi web.
 function tabFromHash(): TabKey {
-  if (typeof window === 'undefined') return 'home';
-  const h = window.location.hash.replace('#', '');
+  const h = webHash();
   return (HASH_TABS as string[]).includes(h) ? (h as TabKey) : 'home';
 }
 
-export default function App() {
+function App() {
   const [tab, setTab] = useState<TabKey>(tabFromHash);
-  const [splashDone, setSplashDone] = useState<boolean>(
-    () =>
-      typeof window !== 'undefined' &&
-      (HASH_TABS as string[]).includes(window.location.hash.replace('#', '')),
+  const [splashDone, setSplashDone] = useState<boolean>(() =>
+    (HASH_TABS as string[]).includes(webHash()),
   );
 
-  const [fontsLoaded] = useFonts({
+  const [fontsLoaded, fontError] = useFonts({
     PlusJakartaSans_400Regular,
     PlusJakartaSans_600SemiBold,
     PlusJakartaSans_700Bold,
@@ -63,7 +70,7 @@ export default function App() {
     return { distanceMeters, calories, durationSeconds };
   }, [history.activityHistory]);
 
-  if (!fontsLoaded) {
+  if (!fontsLoaded && !fontError) {
     return <View style={{ flex: 1, backgroundColor: colors.background }} />;
   }
 
@@ -107,5 +114,13 @@ export default function App() {
       </RootTabs>
       <DialogHost />
     </SafeAreaProvider>
+  );
+}
+
+export default function Root() {
+  return (
+    <RootErrorBoundary>
+      <App />
+    </RootErrorBoundary>
   );
 }
