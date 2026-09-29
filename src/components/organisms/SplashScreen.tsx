@@ -1,5 +1,5 @@
 import React, { useEffect, useRef } from 'react';
-import { Animated, StyleSheet, Text, View } from 'react-native';
+import { Animated, Platform, StyleSheet, Text, View } from 'react-native';
 import { colors } from '../../theme/colors';
 import { fonts } from '../../theme/typography';
 
@@ -12,11 +12,11 @@ export const SplashScreen: React.FC<{ onDone: () => void }> = ({ onDone }) => {
   useEffect(() => {
     const seq = Animated.sequence([
       Animated.parallel([
-        Animated.timing(opacity, { toValue: 1, duration: 420, useNativeDriver: true }),
-        Animated.spring(scale, { toValue: 1, tension: 80, friction: 11, useNativeDriver: true }),
+        Animated.timing(opacity, { toValue: 1, duration: 420, useNativeDriver: Platform.OS !== 'web' }),
+        Animated.spring(scale, { toValue: 1, tension: 80, friction: 11, useNativeDriver: Platform.OS !== 'web' }),
       ]),
       Animated.delay(560),
-      Animated.timing(opacity, { toValue: 0, duration: 280, useNativeDriver: true }),
+      Animated.timing(opacity, { toValue: 0, duration: 280, useNativeDriver: Platform.OS !== 'web' }),
     ]);
     seq.start(({ finished }) => {
       if (finished) onDone();

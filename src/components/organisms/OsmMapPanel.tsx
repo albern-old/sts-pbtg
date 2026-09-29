@@ -32,6 +32,7 @@ export const OsmMapPanel: React.FC<{
 
 const styles = StyleSheet.create({
   frame: {
+    flex: 1,
     borderRadius: radius.xl,
     overflow: 'hidden',
     backgroundColor: colors.surfaceContainer,

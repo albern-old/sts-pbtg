@@ -9,6 +9,7 @@ import {
   useFonts,
 } from '@expo-google-fonts/plus-jakarta-sans';
 import { SplashScreen } from './src/components/organisms/SplashScreen';
+import { DialogHost } from './src/components/organisms/DialogHost';
 import { RootTabs, TabKey } from './src/navigation/RootTabs';
 import { CalculatorScreen } from './src/screens/CalculatorScreen';
 import { HistoryScreen } from './src/screens/HistoryScreen';
@@ -20,9 +21,22 @@ import { useHistoryStore } from './src/hooks/useHistoryStore';
 import { periodStart } from './src/utils/periods';
 import { colors } from './src/theme/colors';
 
+const HASH_TABS: TabKey[] = ['home', 'calculator', 'tracker', 'history'];
+
+// Membuka tab tertentu lewat URL hash (mis. /#tracker) — untuk verifikasi web.
+function tabFromHash(): TabKey {
+  if (typeof window === 'undefined') return 'home';
+  const h = window.location.hash.replace('#', '');
+  return (HASH_TABS as string[]).includes(h) ? (h as TabKey) : 'home';
+}
+
 export default function App() {
-  const [tab, setTab] = useState<TabKey>('home');
-  const [splashDone, setSplashDone] = useState(false);
+  const [tab, setTab] = useState<TabKey>(tabFromHash);
+  const [splashDone, setSplashDone] = useState<boolean>(
+    () =>
+      typeof window !== 'undefined' &&
+      (HASH_TABS as string[]).includes(window.location.hash.replace('#', '')),
+  );
 
   const [fontsLoaded] = useFonts({
     PlusJakartaSans_400Regular,
@@ -91,6 +105,7 @@ export default function App() {
           />
         ) : null}
       </RootTabs>
+      <DialogHost />
     </SafeAreaProvider>
   );
 }

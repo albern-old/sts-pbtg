@@ -30,11 +30,7 @@ const styles = StyleSheet.create({
     borderRadius: 12,
     padding: 14,
     gap: 8,
-    shadowColor: '#0B1C30',
-    shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.06,
-    shadowRadius: 4,
-    elevation: 2,
+    boxShadow: '0px 1px 8px rgba(11,28,48,0.06)',
   },
   topRow: { flexDirection: 'row', alignItems: 'center', gap: 6 },
   label: {

@@ -1,6 +1,5 @@
 import React, { useMemo, useState } from 'react';
 import {
-  Alert,
   ScrollView,
   StyleSheet,
   Text,
@@ -22,6 +21,7 @@ import { AppText } from '../components/atoms/AppText';
 import { Badge } from '../components/atoms/Badge';
 import { BrandHeader } from '../components/molecules/BrandHeader';
 import { WorkoutAnalysisModal } from '../components/WorkoutAnalysisModal';
+import { showConfirm } from '../services/dialog';
 import { ActivityHistoryRecord, BmiHistoryRecord } from '../types';
 import { formatDistance, formatDurationShort, formatPace } from '../utils/format';
 import {
@@ -102,26 +102,39 @@ export const HistoryScreen: React.FC<Props> = ({
   const visibleSessions = showAll ? periodActivities : periodActivities.slice(0, 3);
   const maxBar = Math.max(1, ...chart.days);
 
-  const confirmClear = (kind: 'bmi' | 'activity') => {
-    Alert.alert(
-      kind === 'bmi' ? 'Hapus Riwayat BMI?' : 'Hapus Riwayat GPS?',
-      'Tindakan ini tidak dapat dibatalkan.',
-      [
-        { text: 'Batal', style: 'cancel' },
-        {
-          text: 'Hapus Semua',
-          style: 'destructive',
-          onPress: () => (kind === 'bmi' ? onClearBmi() : onClearActivity()),
-        },
-      ],
-    );
+  const confirmClear = async (kind: 'bmi' | 'activity') => {
+    const confirmed = await showConfirm({
+      title: kind === 'bmi' ? 'Hapus Riwayat BMI?' : 'Hapus Riwayat GPS?',
+      message: 'Tindakan ini tidak dapat dibatalkan.',
+      confirmLabel: 'Hapus Semua',
+      cancelLabel: 'Batal',
+      destructive: true,
+    });
+    if (!confirmed) return;
+    if (kind === 'bmi') onClearBmi();
+    else onClearActivity();
   };
 
-  const confirmDeleteActivity = (item: ActivityHistoryRecord) => {
-    Alert.alert('Hapus Sesi?', `${formatDistance(item.distanceMeters)} pada ${item.dateFormatted}?`, [
-      { text: 'Batal', style: 'cancel' },
-      { text: 'Hapus', style: 'destructive', onPress: () => onDeleteActivity(item.id) },
-    ]);
+  const confirmDeleteActivity = async (item: ActivityHistoryRecord) => {
+    const confirmed = await showConfirm({
+      title: 'Hapus Sesi?',
+      message: `${formatDistance(item.distanceMeters)} pada ${item.dateFormatted}?`,
+      confirmLabel: 'Hapus',
+      cancelLabel: 'Batal',
+      destructive: true,
+    });
+    if (confirmed) onDeleteActivity(item.id);
+  };
+
+  const confirmDeleteBmi = async (item: BmiHistoryRecord) => {
+    const confirmed = await showConfirm({
+      title: 'Hapus Catatan?',
+      message: `Hapus riwayat ${item.dateFormatted}?`,
+      confirmLabel: 'Hapus',
+      cancelLabel: 'Batal',
+      destructive: true,
+    });
+    if (confirmed) onDeleteBmi(item.id);
   };
 
   const restoreLatest = () => {
@@ -283,6 +296,14 @@ export const HistoryScreen: React.FC<Props> = ({
                   </AppText>
                 </View>
                 <TrendingUp size={16} color={colors.primary} />
+                <TouchableOpacity
+                  accessibilityLabel={`Hapus sesi ${TITLES[item.activityType ?? 'lari']}`}
+                  style={styles.sessionDelete}
+                  onPress={() => confirmDeleteActivity(item)}
+                  activeOpacity={0.8}
+                >
+                  <Trash2 size={15} color={colors.danger} />
+                </TouchableOpacity>
               </View>
 
               {item.routeCoordinates && item.routeCoordinates.length > 1 ? (
@@ -381,12 +402,8 @@ export const HistoryScreen: React.FC<Props> = ({
             </TouchableOpacity>
             <TouchableOpacity
               style={styles.rowDelete}
-              onPress={() =>
-                Alert.alert('Hapus Catatan?', `Hapus riwayat ${item.dateFormatted}?`, [
-                  { text: 'Batal', style: 'cancel' },
-                  { text: 'Hapus', style: 'destructive', onPress: () => onDeleteBmi(item.id) },
-                ])
-              }
+              accessibilityLabel={`Hapus catatan BMI ${item.dateFormatted}`}
+              onPress={() => confirmDeleteBmi(item)}
               activeOpacity={0.8}
             >
               <Trash2 size={14} color={colors.danger} />
@@ -406,7 +423,7 @@ export const HistoryScreen: React.FC<Props> = ({
         ) : null}
 
         <AppText variant="labelSm" muted style={styles.note}>
-          Ketuk sesi untuk analisis detail • tekan lama untuk menghapus.
+          Ketuk sesi untuk analisis detail • ketuk ikon tempat sampah untuk menghapus.
         </AppText>
       </ScrollView>
 
@@ -450,11 +467,7 @@ const styles = StyleSheet.create({
     borderRadius: 12,
     padding: 16,
     gap: 10,
-    shadowColor: '#0B1C30',
-    shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.06,
-    shadowRadius: 4,
-    elevation: 2,
+    boxShadow: '0px 1px 8px rgba(11,28,48,0.06)',
   },
   cardTitle: { fontSize: 13, fontFamily: fonts.bold, color: colors.onSurface },
   summaryHero: { flexDirection: 'row', alignItems: 'baseline', gap: 5 },
@@ -500,11 +513,7 @@ const styles = StyleSheet.create({
     backgroundColor: colors.surfaceLowest,
     borderRadius: 12,
     padding: 14,
-    shadowColor: '#0B1C30',
-    shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.06,
-    shadowRadius: 4,
-    elevation: 2,
+    boxShadow: '0px 1px 8px rgba(11,28,48,0.06)',
   },
   bmiIcon: {
     width: 40,
@@ -538,13 +547,18 @@ const styles = StyleSheet.create({
     borderRadius: 12,
     padding: 14,
     gap: 10,
-    shadowColor: '#0B1C30',
-    shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.06,
-    shadowRadius: 4,
-    elevation: 2,
+    boxShadow: '0px 1px 8px rgba(11,28,48,0.06)',
   },
   sessionHead: { flexDirection: 'row', alignItems: 'center', gap: 8 },
+  sessionDelete: {
+    width: 32,
+    height: 32,
+    borderRadius: 10,
+    borderWidth: 1,
+    borderColor: colors.outlineVariant,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
   chipRow: { flexDirection: 'row', gap: 6, flexWrap: 'wrap' },
   chip: {
     flexDirection: 'row',

@@ -1,8 +1,9 @@
 import React, { useRef, useEffect, useState, useMemo } from 'react';
-import { StyleSheet, TouchableOpacity, View } from 'react-native';
+import { StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import { WebView, WebViewMessageEvent } from 'react-native-webview';
-import { Crosshair, Minus, Plus } from 'lucide-react-native';
+import { Crosshair, Layers, MapPin } from 'lucide-react-native';
 import { colors } from '../theme/colors';
+import { fonts } from '../theme/typography';
 
 export interface Coordinate {
   latitude: number;
@@ -19,8 +20,14 @@ export interface ActivityMapProps {
   onInteractionChange?: (isInteracting: boolean) => void;
 }
 
-// Peta OpenStreetMap (Leaflet) via WebView — gratis, tanpa API key/billing.
-// Rute bergaya desain: garis gelap di atas cahaya hijau.
+const TILE_STREET =
+  'https://tile.openstreetmap.org/{z}/{x}/{y}.png';
+// Esri World Imagery (satelit) — gratis tanpa API key. Catatan urutan {z}/{y}/{x}.
+const TILE_SATELLITE =
+  'https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}';
+
+// Peta OpenStreetMap (Leaflet) via WebView — gratis, tanpa API key.
+// Rute bergaya desain: inti gelap di atas cahaya hijau.
 export const ActivityMap: React.FC<ActivityMapProps> = ({
   currentLocation,
   routeCoordinates,
@@ -28,8 +35,8 @@ export const ActivityMap: React.FC<ActivityMapProps> = ({
   onInteractionChange,
 }) => {
   const webViewRef = useRef<WebView | null>(null);
-  const [isWebViewLoaded, setIsWebViewLoaded] = useState<boolean>(false);
-  const [isUserInteracting, setIsUserInteracting] = useState<boolean>(false);
+  const [loaded, setLoaded] = useState(false);
+  const [satellite, setSatellite] = useState(false);
 
   const fallbackCoord: Coordinate = useMemo(
     () => ({ latitude: -6.1754, longitude: 106.8272 }),
@@ -40,62 +47,54 @@ export const ActivityMap: React.FC<ActivityMapProps> = ({
     currentLocation ||
     (routeCoordinates.length > 0 ? routeCoordinates[routeCoordinates.length - 1] : fallbackCoord);
 
-  useEffect(() => {
-    if (currentLocation && webViewRef.current && isWebViewLoaded) {
-      webViewRef.current.injectJavaScript(`
-        if (window.updatePosition) {
-          window.updatePosition(${currentLocation.latitude}, ${currentLocation.longitude}, ${isTracking});
-        }
-        true;
-      `);
-    }
-  }, [currentLocation, isTracking, isWebViewLoaded]);
+  const inject = (js: string) => {
+    if (loaded) webViewRef.current?.injectJavaScript(`${js}\ntrue;`);
+  };
 
   useEffect(() => {
-    if (routeCoordinates.length > 0 && webViewRef.current && isWebViewLoaded) {
-      webViewRef.current.injectJavaScript(`
-        if (window.updateRoute) {
-          window.updateRoute(${JSON.stringify(routeCoordinates)});
-        }
-        true;
-      `);
+    if (currentLocation) {
+      inject(
+        `if (window.updatePosition) window.updatePosition(${currentLocation.latitude}, ${currentLocation.longitude}, ${isTracking});`,
+      );
     }
-  }, [routeCoordinates, isWebViewLoaded]);
+  }, [currentLocation, isTracking, loaded]);
 
-  const handleRecenter = () => {
-    if (!activePosition || !webViewRef.current) return;
-    webViewRef.current.injectJavaScript(`
-      if (window.recenter) {
-        window.recenter(${activePosition.latitude}, ${activePosition.longitude});
-      }
-      true;
-    `);
-    setIsUserInteracting(false);
+  useEffect(() => {
+    if (routeCoordinates.length > 0) {
+      inject(`if (window.updateRoute) window.updateRoute(${JSON.stringify(routeCoordinates)});`);
+    }
+  }, [routeCoordinates, loaded]);
+
+  const recenter = () => {
+    inject(
+      `if (window.recenter) window.recenter(${activePosition.latitude}, ${activePosition.longitude});`,
+    );
     onInteractionChange?.(false);
   };
 
-  const handleZoom = (dir: 1 | -1) => {
-    webViewRef.current?.injectJavaScript(`
-      if (window.${dir === 1 ? 'zoomIn' : 'zoomOut'}) { window.${dir === 1 ? 'zoomIn' : 'zoomOut'}(); }
-      true;
-    `);
+  const toggleBasemap = () => {
+    setSatellite((v) => {
+      const next = !v;
+      inject(
+        `if (window.setBaseLayer) window.setBaseLayer('${next ? TILE_SATELLITE : TILE_STREET}');`,
+      );
+      return next;
+    });
   };
 
   const handleMessage = (event: WebViewMessageEvent) => {
     try {
       const data = JSON.parse(event.nativeEvent.data);
-      if (data.type === 'INTERACTION_START') {
-        setIsUserInteracting(true);
-        onInteractionChange?.(true);
-      } else if (data.type === 'INTERACTION_END') {
-        setIsUserInteracting(false);
-        onInteractionChange?.(false);
-      }
+      if (data.type === 'INTERACTION_START') onInteractionChange?.(true);
+      else if (data.type === 'INTERACTION_END') onInteractionChange?.(false);
     } catch {
       // abaikan pesan non-JSON
     }
   };
 
+  // HTML dibangun SEKALI (pusat/titik awal = posisi saat mount). Update berikutnya
+  // lewat injectJavaScript — source yang berubah tiap tick GPS membuat WebView reload
+  // total (peta tak bisa digeser & layer satelit reset).
   const leafletHtml = useMemo(() => {
     const lat = activePosition.latitude;
     const lng = activePosition.longitude;
@@ -115,9 +114,8 @@ export const ActivityMap: React.FC<ActivityMapProps> = ({
       -webkit-user-select: none; user-select: none; background: #E5EEFF;
     }
     #map { width: 100%; height: 100%; touch-action: none; background: #E5EEFF; }
-    .leaflet-control-container .leaflet-top,
-    .leaflet-control-container .leaflet-bottom { display: none !important; }
-    .leaflet-pane, .leaflet-tile, .leaflet-marker-icon { transform: translateZ(0); -webkit-transform: translateZ(0); will-change: transform; }
+    .leaflet-control-container { display: none !important; }
+    .leaflet-pane, .leaflet-tile, .leaflet-marker-icon { transform: translateZ(0); will-change: transform; }
     .live-marker { display: flex; align-items: center; justify-content: center; width: 30px; height: 30px; position: relative; }
     .live-dot { width: 16px; height: 16px; border-radius: 50%; background: #006948; border: 3px solid #FFFFFF; box-shadow: 0 2px 6px rgba(0,0,0,0.3); z-index: 2; }
     .live-halo { position: absolute; width: 30px; height: 30px; border-radius: 50%; background: rgba(0,105,72,0.22); border: 1.5px solid rgba(0,105,72,0.5); }
@@ -140,8 +138,8 @@ export const ActivityMap: React.FC<ActivityMapProps> = ({
     var mainLine = null;
     var isUserInteracting = false;
     var interactionTimer = null;
-
-    var tileUrl = 'https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png';
+    // Follow otomatis hanya sampai user menggeser/zoom; tombol recenter menyalakannya lagi.
+    var following = true;
 
     function notifyInteraction(isStarting) {
       if (isStarting) {
@@ -163,7 +161,7 @@ export const ActivityMap: React.FC<ActivityMapProps> = ({
 
     function init() {
       try {
-        streetLayer = L.tileLayer(tileUrl, { maxZoom: 19, subdomains: 'abcd', keepBuffer: 6 });
+        streetLayer = L.tileLayer('${TILE_STREET}', { maxZoom: 19, subdomains: 'abc', keepBuffer: 6 });
         map = L.map('map', {
           center: [${lat}, ${lng}],
           zoom: 16,
@@ -177,12 +175,13 @@ export const ActivityMap: React.FC<ActivityMapProps> = ({
 
         map.on('dragstart movestart zoomstart', function() { notifyInteraction(true); });
         map.on('dragend moveend zoomend', function() { notifyInteraction(false); });
+        map.on('dragstart zoomstart', function() { following = false; });
 
         glowLine = L.polyline([], {
-          color: '#10b981', weight: 9, opacity: 0.9, lineCap: 'round', lineJoin: 'round'
+          color: '#10b981', weight: 10, opacity: 0.95, lineCap: 'round', lineJoin: 'round'
         }).addTo(map);
         mainLine = L.polyline([], {
-          color: '#0b1c30', weight: 5, lineCap: 'round', lineJoin: 'round'
+          color: '#0B1C30', weight: 5, lineCap: 'round', lineJoin: 'round'
         }).addTo(map);
 
         var liveIcon = L.divIcon({
@@ -204,7 +203,7 @@ export const ActivityMap: React.FC<ActivityMapProps> = ({
       if (!map || !liveMarker) return;
       var newLatLng = [lat, lng];
       liveMarker.setLatLng(newLatLng);
-      if (isTracking && !isUserInteracting) {
+      if (isTracking && following) {
         map.panTo(newLatLng, { animate: true, duration: 0.4 });
       }
     };
@@ -229,16 +228,25 @@ export const ActivityMap: React.FC<ActivityMapProps> = ({
       } catch(e) {}
     };
 
-    window.zoomIn = function() { if (map) map.zoomIn(); };
-    window.zoomOut = function() { if (map) map.zoomOut(); };
     window.recenter = function(lat, lng) {
-      if (map) { isUserInteracting = false; map.setView([lat, lng], 16, { animate: true, duration: 0.5 }); }
+      if (map) {
+        following = true;
+        isUserInteracting = false;
+        map.setView([lat, lng], 16, { animate: true, duration: 0.5 });
+      }
+    };
+
+    window.setBaseLayer = function(url) {
+      if (!map || !streetLayer) return;
+      streetLayer.setUrl(url);
     };
   </script>
-</body>
+  </body>
 </html>
     `;
-  }, [activePosition.latitude, activePosition.longitude]);
+  }, []);
+
+  const source = useMemo(() => ({ html: leafletHtml }), [leafletHtml]);
 
   return (
     <View
@@ -250,7 +258,7 @@ export const ActivityMap: React.FC<ActivityMapProps> = ({
       <WebView
         ref={webViewRef}
         originWhitelist={['*']}
-        source={{ html: leafletHtml }}
+        source={source}
         style={styles.map}
         scrollEnabled={true}
         nestedScrollEnabled={true}
@@ -261,36 +269,41 @@ export const ActivityMap: React.FC<ActivityMapProps> = ({
         androidLayerType="hardware"
         onMessage={handleMessage}
         onLoadEnd={() => {
-          setIsWebViewLoaded(true);
+          setLoaded(true);
           if (activePosition) {
-            webViewRef.current?.injectJavaScript(`
-              if (window.updatePosition) {
-                window.updatePosition(${activePosition.latitude}, ${activePosition.longitude}, ${isTracking});
-              }
-              true;
-            `);
+            inject(
+              `if (window.updatePosition) window.updatePosition(${activePosition.latitude}, ${activePosition.longitude}, ${isTracking});`,
+            );
           }
           if (routeCoordinates.length > 0) {
-            webViewRef.current?.injectJavaScript(`
-              if (window.updateRoute) {
-                window.updateRoute(${JSON.stringify(routeCoordinates)});
-              }
-              true;
-            `);
+            inject(`if (window.updateRoute) window.updateRoute(${JSON.stringify(routeCoordinates)});`);
+          }
+          // Jika WebView pernah reload saat mode satelit aktif, pulihkan layernya.
+          if (satellite) {
+            inject(`if (window.setBaseLayer) window.setBaseLayer('${TILE_SATELLITE}');`);
           }
         }}
       />
 
-      {/* Kontrol mengambang kanan-bawah (di bawah panel statistik) */}
-      <View style={styles.controlsGroup}>
-        <TouchableOpacity style={styles.ctrlBtn} onPress={() => handleZoom(1)} activeOpacity={0.85}>
-          <Plus size={18} color={colors.onSurface} />
+      {/* Chip kiri-atas sesuai desain */}
+      <View style={[styles.chip, { pointerEvents: 'none' }]}>
+        <MapPin size={13} color={satellite ? colors.warning : colors.primary} />
+        <Text style={styles.chipText}>{satellite ? 'Satelit · Esri' : 'OpenStreetMap'}</Text>
+      </View>
+
+      {/* Tombol kanan-atas sesuai desain: lokasi + lapisan peta */}
+      <View style={styles.controls}>
+        <TouchableOpacity style={styles.ctrlBtn} onPress={recenter} activeOpacity={0.85}>
+          <Crosshair size={17} color={colors.onSurface} />
         </TouchableOpacity>
-        <TouchableOpacity style={styles.ctrlBtn} onPress={() => handleZoom(-1)} activeOpacity={0.85}>
-          <Minus size={18} color={colors.onSurface} />
-        </TouchableOpacity>
-        <TouchableOpacity style={styles.ctrlBtn} onPress={handleRecenter} activeOpacity={0.85}>
-          <Crosshair size={18} color={colors.primary} />
+        <TouchableOpacity
+          testID="map-layers"
+          accessibilityLabel="Ganti lapisan peta"
+          style={styles.ctrlBtn}
+          onPress={toggleBasemap}
+          activeOpacity={0.85}
+        >
+          <Layers size={17} color={satellite ? colors.primary : colors.onSurface} />
         </TouchableOpacity>
       </View>
     </View>
@@ -312,24 +325,33 @@ const styles = StyleSheet.create({
     bottom: 0,
     backgroundColor: colors.surfaceContainer,
   },
-  controlsGroup: {
+  chip: {
     position: 'absolute',
+    top: 10,
+    left: 10,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 5,
+    backgroundColor: colors.surfaceLowest,
+    paddingHorizontal: 11,
+    paddingVertical: 7,
+    borderRadius: 999,
+    boxShadow: '0px 2px 10px rgba(11,28,48,0.16)',
+  },
+  chipText: { fontSize: 11, fontFamily: fonts.bold, color: colors.onSurface },
+  controls: {
+    position: 'absolute',
+    top: 10,
     right: 10,
-    bottom: 10,
     gap: 8,
-    zIndex: 10,
   },
   ctrlBtn: {
-    width: 40,
-    height: 40,
-    borderRadius: 12,
+    width: 38,
+    height: 38,
+    borderRadius: 19,
     backgroundColor: colors.surfaceLowest,
     justifyContent: 'center',
     alignItems: 'center',
-    shadowColor: '#0B1C30',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.15,
-    shadowRadius: 4,
-    elevation: 4,
+    boxShadow: '0px 2px 10px rgba(11,28,48,0.16)',
   },
 });

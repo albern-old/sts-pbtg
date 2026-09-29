@@ -70,11 +70,7 @@ const styles = StyleSheet.create({
   },
   itemActive: {
     backgroundColor: colors.surfaceLowest,
-    shadowColor: '#0B1C30',
-    shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.1,
-    shadowRadius: 3,
-    elevation: 2,
+    boxShadow: '0px 1px 6px rgba(11,28,48,0.1)',
   },
   itemEmph: { backgroundColor: colors.primary },
   label: { fontSize: 13, fontFamily: fonts.medium, color: colors.onSurfaceVariant },

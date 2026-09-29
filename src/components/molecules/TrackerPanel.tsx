@@ -20,7 +20,7 @@ interface Props {
   onReset: () => void;
 }
 
-// Panel statistik mengambang di atas peta (desain "Pelacak Aktivitas GPS").
+// Kartu statistik di bawah peta (desain "Pelacak Aktivitas GPS").
 export const TrackerPanel: React.FC<Props> = ({
   status,
   distanceMeters,
@@ -39,7 +39,7 @@ export const TrackerPanel: React.FC<Props> = ({
 
   return (
     <View style={styles.card}>
-      <View style={styles.distanceRow}>
+      <View style={styles.distanceBlock}>
         <Text style={styles.distanceLabel}>JARAK TEMPUH</Text>
         <View style={styles.distanceValueRow}>
           <Text style={styles.distanceValue}>{(distanceMeters / 1000).toFixed(2)}</Text>
@@ -96,27 +96,19 @@ export const TrackerPanel: React.FC<Props> = ({
           <RotateCcw size={20} color={colors.onSurfaceVariant} />
         </TouchableOpacity>
 
-        {tracking ? (
-          <TouchableOpacity
-            accessibilityLabel="Jeda"
-            accessibilityRole="button"
-            onPress={onPause}
-            activeOpacity={0.85}
-            style={styles.mainBtn}
-          >
+        <TouchableOpacity
+          accessibilityLabel={tracking ? 'Jeda' : 'Mulai'}
+          accessibilityRole="button"
+          onPress={tracking ? onPause : onStart}
+          activeOpacity={0.85}
+          style={styles.mainBtn}
+        >
+          {tracking ? (
             <Pause size={26} color={colors.onPrimary} fill={colors.onPrimary} />
-          </TouchableOpacity>
-        ) : (
-          <TouchableOpacity
-            accessibilityLabel="Mulai"
-            accessibilityRole="button"
-            onPress={onStart}
-            activeOpacity={0.85}
-            style={styles.mainBtn}
-          >
+          ) : (
             <Play size={26} color={colors.onPrimary} fill={colors.onPrimary} />
-          </TouchableOpacity>
-        )}
+          )}
+        </TouchableOpacity>
 
         <TouchableOpacity
           accessibilityLabel="Berhenti dan simpan"
@@ -126,7 +118,7 @@ export const TrackerPanel: React.FC<Props> = ({
           activeOpacity={0.85}
           style={[styles.stopBtn, canStop ? null : styles.disabled]}
         >
-          <Square size={15} color={colors.onPrimary} fill={colors.onPrimary} />
+          <Square size={15} color={colors.danger} fill={colors.danger} />
         </TouchableOpacity>
       </View>
     </View>
@@ -136,16 +128,12 @@ export const TrackerPanel: React.FC<Props> = ({
 const styles = StyleSheet.create({
   card: {
     backgroundColor: colors.surfaceLowest,
-    borderRadius: 16,
+    borderRadius: 20,
     padding: 16,
     gap: 14,
-    shadowColor: '#0B1C30',
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.12,
-    shadowRadius: 12,
-    elevation: 6,
+    boxShadow: '0px 6px 28px rgba(11,28,48,0.14)',
   },
-  distanceRow: { alignItems: 'center', gap: 2 },
+  distanceBlock: { alignItems: 'center', gap: 2 },
   distanceLabel: {
     fontSize: 11,
     fontFamily: fonts.bold,
@@ -160,28 +148,41 @@ const styles = StyleSheet.create({
     letterSpacing: -1,
   },
   distanceUnit: { fontSize: 16, fontFamily: fonts.bold, color: colors.primaryEmphasis },
-  grid: { flexDirection: 'row', flexWrap: 'wrap', rowGap: 12 },
-  cell: { width: '50%', gap: 4, paddingRight: 8 },
-  cellHead: { flexDirection: 'row', alignItems: 'center', gap: 5 },
+  grid: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    columnGap: 10,
+    rowGap: 10,
+  },
+  cell: {
+    width: '47.5%',
+    flexGrow: 1,
+    backgroundColor: colors.surfaceLow,
+    borderRadius: 14,
+    padding: 12,
+    gap: 6,
+  },
+  cellHead: { flexDirection: 'row', alignItems: 'center', gap: 6 },
   cellLabel: {
-    fontSize: 10,
+    fontSize: 9.5,
     fontFamily: fonts.bold,
     color: colors.onSurfaceVariant,
     letterSpacing: 0.4,
+    flexShrink: 1,
   },
-  cellValue: { fontSize: 17, fontFamily: fonts.extraBold, color: colors.onSurface },
-  cellUnit: { fontSize: 12, fontFamily: fonts.medium, color: colors.onSurfaceVariant },
+  cellValue: { fontSize: 18, fontFamily: fonts.extraBold, color: colors.onSurface },
+  cellUnit: { fontSize: 11, fontFamily: fonts.medium, color: colors.onSurfaceVariant },
   controls: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
-    gap: 22,
+    gap: 26,
     paddingTop: 2,
   },
   sideBtn: {
-    width: 46,
-    height: 46,
-    borderRadius: 23,
+    width: 48,
+    height: 48,
+    borderRadius: 24,
     backgroundColor: colors.surfaceLow,
     borderWidth: 1,
     borderColor: colors.outlineVariant,
@@ -189,23 +190,21 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
   },
   mainBtn: {
-    width: 62,
-    height: 62,
-    borderRadius: 31,
+    width: 64,
+    height: 64,
+    borderRadius: 32,
     backgroundColor: colors.primary,
     alignItems: 'center',
     justifyContent: 'center',
-    shadowColor: colors.primary,
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.35,
-    shadowRadius: 8,
-    elevation: 6,
+    boxShadow: '0px 5px 20px rgba(0,105,72,0.35)',
   },
   stopBtn: {
-    width: 46,
-    height: 46,
-    borderRadius: 23,
-    backgroundColor: colors.error,
+    width: 48,
+    height: 48,
+    borderRadius: 24,
+    backgroundColor: colors.dangerSoft,
+    borderWidth: 1,
+    borderColor: 'rgba(186,26,26,0.25)',
     alignItems: 'center',
     justifyContent: 'center',
   },

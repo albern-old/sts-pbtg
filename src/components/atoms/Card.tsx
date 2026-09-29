@@ -19,15 +19,10 @@ const styles = StyleSheet.create({
     backgroundColor: colors.surfaceLowest,
     borderRadius: radius.xl,
     padding: spacing.md,
-    shadowColor: '#0B1C30',
-    shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.06,
-    shadowRadius: 4,
-    elevation: 2,
+    boxShadow: '0px 1px 8px rgba(11,28,48,0.06)',
   },
   cardLow: {
     backgroundColor: colors.surfaceLow,
-    shadowOpacity: 0,
-    elevation: 0,
+    boxShadow: '0px 0px 0px rgba(0,0,0,0)',
   },
 });

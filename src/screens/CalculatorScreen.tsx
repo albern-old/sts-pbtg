@@ -1,4 +1,4 @@
-import React, { useRef, useState } from 'react';
+import React, { useState } from 'react';
 import { ScrollView, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import Slider from '@react-native-community/slider';
 import {
@@ -59,15 +59,9 @@ function riskLabel(type: string): string {
 
 export const CalculatorScreen: React.FC<{ calculator: Calculator }> = ({ calculator }) => {
   const [zonesOpen, setZonesOpen] = useState(false);
-  const scrollRef = useRef<ScrollView | null>(null);
-  const [resultY, setResultY] = useState(0);
   const internalGender = calculator.gender === 'pria' ? 'male' : 'female';
   const { metrics } = calculator;
   const markerPos = spectrumPosition(metrics.bmi);
-
-  const scrollToResult = () => {
-    scrollRef.current?.scrollTo({ y: Math.max(0, resultY - 16), animated: true });
-  };
 
   const weightIdealText = () => {
     const ideal = `${metrics.idealWeightMin} kg – ${metrics.idealWeightMax} kg`;
@@ -83,7 +77,7 @@ export const CalculatorScreen: React.FC<{ calculator: Calculator }> = ({ calcula
 
   return (
     <View style={styles.root}>
-      <ScrollView ref={scrollRef} contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
+      <ScrollView contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
         <BrandHeader
           right={
             <View style={styles.whoChip}>
@@ -126,6 +120,7 @@ export const CalculatorScreen: React.FC<{ calculator: Calculator }> = ({ calcula
               <Text style={styles.valueText}>{calculator.age} Tahun</Text>
             </View>
             <TouchableOpacity
+              accessibilityLabel="Kurangi usia"
               style={styles.stepBtn}
               onPress={() => calculator.setAge(Math.max(10, calculator.age - 1))}
               activeOpacity={0.85}
@@ -133,6 +128,7 @@ export const CalculatorScreen: React.FC<{ calculator: Calculator }> = ({ calcula
               <Minus size={17} color={colors.onSurfaceVariant} />
             </TouchableOpacity>
             <TouchableOpacity
+              accessibilityLabel="Tambah usia"
               style={styles.stepBtn}
               onPress={() => calculator.setAge(Math.min(110, calculator.age + 1))}
               activeOpacity={0.85}
@@ -206,17 +202,8 @@ export const CalculatorScreen: React.FC<{ calculator: Calculator }> = ({ calcula
           />
         </View>
 
-        {/* Tombol aksi */}
-        <TouchableOpacity style={styles.primaryBtn} activeOpacity={0.85} onPress={scrollToResult}>
-          <Calculator size={17} color={colors.onPrimary} />
-          <Text style={styles.primaryBtnText}>Hitung BMI & Analisis Ideal</Text>
-        </TouchableOpacity>
-
-        {/* Hasil BMI */}
-        <View
-          style={styles.card}
-          onLayout={(e) => setResultY(e.nativeEvent.layout.y)}
-        >
+        {/* Hasil BMI (selalu live saat slider/dropdown berubah — tanpa tombol hitung) */}
+        <View style={styles.card}>
           <Text style={styles.resultEyebrow}>HASIL BMI</Text>
           <View style={styles.resultRow}>
             <View style={styles.resultValueRow}>
@@ -362,11 +349,7 @@ const styles = StyleSheet.create({
     borderRadius: 12,
     padding: 16,
     gap: 12,
-    shadowColor: '#0B1C30',
-    shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.06,
-    shadowRadius: 4,
-    elevation: 2,
+    boxShadow: '0px 1px 8px rgba(11,28,48,0.06)',
   },
   labelRow: { flexDirection: 'row', alignItems: 'center', gap: 7 },
   fieldLabel: { fontSize: 11, fontFamily: fonts.bold, color: colors.onSurfaceVariant, letterSpacing: 0.5 },
@@ -394,21 +377,6 @@ const styles = StyleSheet.create({
   slider: { width: '100%', height: 34 },
   ruler: { flexDirection: 'row', justifyContent: 'space-between' },
   rulerText: { fontSize: 11, fontFamily: fonts.bold, color: colors.onSurfaceVariant },
-  primaryBtn: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    gap: 8,
-    backgroundColor: colors.primary,
-    paddingVertical: 15,
-    borderRadius: 12,
-    shadowColor: colors.primary,
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.3,
-    shadowRadius: 8,
-    elevation: 4,
-  },
-  primaryBtnText: { fontSize: 15, fontFamily: fonts.bold, color: colors.onPrimary },
   resultEyebrow: {
     fontSize: 11,
     fontFamily: fonts.bold,
@@ -440,11 +408,7 @@ const styles = StyleSheet.create({
     borderWidth: 4,
     borderColor: colors.onSurface,
     marginLeft: -9,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.2,
-    shadowRadius: 2,
-    elevation: 3,
+    boxShadow: '0px 1px 4px rgba(0,0,0,0.2)',
   },
   spectrumLabels: { flexDirection: 'row' },
   spectrumLabelCell: { flex: 1, alignItems: 'center', gap: 1 },

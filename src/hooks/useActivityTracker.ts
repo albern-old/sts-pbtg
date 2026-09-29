@@ -1,11 +1,11 @@
 import { useEffect, useRef, useState } from 'react';
-import { Alert } from 'react-native';
 import * as Location from 'expo-location';
 import { Coordinate } from '../components/ActivityMap';
 import { ActivityHistoryRecord, ActivityType } from '../types';
 import { formatDateId } from '../utils/format';
 import { estimateCaloriesKcal, getHaversineDistanceMeters } from '../utils/geo';
 import { saveActivityHistory } from '../utils/historyStorage';
+import { showAlert } from '../services/dialog';
 
 export type TrackerStatus = 'idle' | 'tracking' | 'paused';
 
@@ -146,7 +146,7 @@ export function useActivityTracker(weightKg: number) {
       const { status: perm } = await Location.requestForegroundPermissionsAsync();
       if (perm !== 'granted') {
         setStatus('idle');
-        Alert.alert(
+        await showAlert(
           'Izin Lokasi Diperlukan',
           'Aktifkan GPS atau gunakan Mode Simulasi untuk mencoba pelacakan.',
         );
@@ -249,7 +249,11 @@ export function useActivityTracker(weightKg: number) {
       );
       locationSubRef.current = sub;
     } catch {
-      Alert.alert('Info', 'Sensor GPS aktif. Anda juga bisa memakai mode simulasi.');
+      setStatus('idle');
+      await showAlert(
+        'GPS Tidak Tersedia',
+        'Layanan lokasi tidak dapat diakses. Gunakan Mode Simulasi untuk mencoba pelacakan.',
+      );
     }
   };
 

@@ -41,6 +41,9 @@ export const RootTabs: React.FC<{
         return (
           <TouchableOpacity
             key={tab.key}
+            testID={`tab-${tab.key}`}
+            accessibilityRole="tab"
+            accessibilityState={{ selected }}
             style={[styles.tab, selected && styles.tabActive]}
             onPress={() => onChange(tab.key)}
             activeOpacity={0.85}
@@ -74,18 +77,17 @@ const styles = StyleSheet.create({
     borderColor: colors.outlineVariant,
     borderRadius: 24,
     padding: 6,
-    shadowColor: '#0B1C30',
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.08,
-    shadowRadius: 10,
-    elevation: 6,
+    overflow: 'hidden',
+    boxShadow: '0px 4px 20px rgba(11,28,48,0.08)',
   },
   tab: {
     flex: 1,
+    minWidth: 0,
     alignItems: 'center',
     gap: 3,
     paddingVertical: 9,
     borderRadius: 18,
+    overflow: 'hidden',
   },
   tabActive: { backgroundColor: colors.primary },
   tabLabel: {
@@ -93,6 +95,9 @@ const styles = StyleSheet.create({
     fontFamily: fonts.bold,
     color: colors.onSurfaceVariant,
     textAlign: 'center',
+    flex: 1,
+    flexGrow: 1,
+    flexShrink: 1,
   },
   tabLabelActive: { color: colors.onPrimary },
 });

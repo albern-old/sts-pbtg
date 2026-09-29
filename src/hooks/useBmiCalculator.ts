@@ -1,5 +1,4 @@
 import { useMemo, useState } from 'react';
-import { Alert } from 'react-native';
 import { calculateTelemetry } from '../utils/telemetry';
 import {
   ActivityLevel,
@@ -8,6 +7,7 @@ import {
 } from '../types';
 import { formatDateId } from '../utils/format';
 import { saveBmiHistory } from '../utils/historyStorage';
+import { showAlert } from '../services/dialog';
 
 export type UiGender = 'pria' | 'wanita';
 
@@ -75,7 +75,7 @@ export function useBmiCalculator(onSaved: (records: BmiHistoryRecord[]) => void)
     };
     const updated = await saveBmiHistory(record);
     onSaved(updated);
-    Alert.alert(
+    await showAlert(
       'BMI Tersimpan',
       `${metrics.bmi} • ${metrics.category.label} berhasil disimpan ke Riwayat.`,
     );

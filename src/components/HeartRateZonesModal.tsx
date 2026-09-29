@@ -1,14 +1,10 @@
 import React from 'react';
-import {
-  StyleSheet,
-  View,
-  Text,
-  Modal,
-  TouchableOpacity,
-  ScrollView,
-} from 'react-native';
-import { Heart, X, Sparkles, Activity } from 'lucide-react-native';
+import { StyleSheet, View, Text, Modal, TouchableOpacity, ScrollView } from 'react-native';
+import { Activity, Heart, X } from 'lucide-react-native';
 import { Gender, HeartRateZone } from '../types';
+import { colors } from '../theme/colors';
+import { fonts } from '../theme/typography';
+
 interface HeartRateZonesModalProps {
   isOpen: boolean;
   onClose: () => void;
@@ -27,316 +23,179 @@ export const HeartRateZonesModal: React.FC<HeartRateZonesModalProps> = ({
   zones,
   gender = 'male',
   formulaName,
-}) => {
-
-  return (
-    <Modal
-      visible={isOpen}
-      transparent={true}
-      animationType="fade"
-      onRequestClose={onClose}
-    >
-      <View style={styles.backdrop}>
-        <View style={styles.modalCard}>
-          {/* Header */}
-          <View style={styles.modalHeader}>
-            <View style={styles.headerLeft}>
-              <View style={styles.heartIconBox}>
-                <Heart size={20} color="#EF4444" fill="#EF4444" />
-              </View>
-              <View style={{ flex: 1 }}>
-                <View style={styles.headerTagRow}>
-                  <Text style={styles.modalTitle}>Zona Detak Jantung Latihan</Text>
-                  <View style={styles.genderBadge}>
-                    <Text style={styles.genderBadgeText}>
-                      {gender === 'male' ? '♂ PRIA' : '♀ WANITA'}
-                    </Text>
-                  </View>
-                </View>
-                <Text style={styles.modalSubtitle}>
-                  Usia {age} thn • Denyut Maksimum:{' '}
-                  <Text style={{ fontWeight: '800', color: '#0F172A' }}>
-                    {maxHeartRate} BPM
-                  </Text>
-                </Text>
-              </View>
-            </View>
-
-            <TouchableOpacity
-              style={styles.closeBtn}
-              onPress={onClose}
-              activeOpacity={0.7}
-            >
-              <X size={18} color="#64748B" />
-            </TouchableOpacity>
+}) => (
+  <Modal visible={isOpen} transparent animationType="fade" onRequestClose={onClose}>
+    <View style={styles.backdrop}>
+      <View style={styles.card}>
+        {/* Header */}
+        <View style={styles.header}>
+          <View style={styles.iconBox}>
+            <Heart size={17} color={colors.error} fill={colors.error} />
           </View>
-
-          {/* Formula Attribution Banner */}
-          <View style={styles.formulaBanner}>
-            <Activity size={13} color="#6366F1" />
-            <Text style={styles.formulaText}>
-              {formulaName ||
-                (gender === 'female'
-                  ? 'Formula Klinis Gulati (Standar Wanita: 206 - 0.88×Usia)'
-                  : 'Formula Tanaka (Standar Pria: 208 - 0.7×Usia)')}
+          <View style={styles.headerTexts}>
+            <Text style={styles.title}>Zona Detak Jantung</Text>
+            <Text style={styles.subtitle}>
+              {age} thn · {gender === 'male' ? 'Pria' : 'Wanita'} · Maksimum {maxHeartRate} bpm
             </Text>
           </View>
-
-          {/* List 5 Zones */}
-          <ScrollView style={styles.zonesScroll} showsVerticalScrollIndicator={false}>
-            {zones.map((zone) => (
-              <View key={zone.zone} style={styles.zoneItem}>
-                <View style={styles.zoneTopRow}>
-                  <View style={styles.zoneNameGroup}>
-                    <View
-                      style={[styles.zoneBadge, { backgroundColor: zone.color }]}
-                    >
-                      <Text style={styles.zoneBadgeText}>Z{zone.zone}</Text>
-                    </View>
-                    <Text style={styles.zoneNameText}>{zone.name}</Text>
-                  </View>
-
-                  <View style={styles.zoneBpmGroup}>
-                    <Text style={styles.bpmRangeText}>{zone.bpmRange}</Text>
-                    <Text style={styles.percentText}>{zone.rangePercentage}</Text>
-                  </View>
-                </View>
-
-                <View style={styles.zoneBottomRow}>
-                  <View
-                    style={[
-                      styles.intensityPill,
-                      { backgroundColor: `${zone.color}20` },
-                    ]}
-                  >
-                    <Text
-                      style={[styles.intensityText, { color: zone.color }]}
-                    >
-                      {zone.intensity}
-                    </Text>
-                  </View>
-                  <Text style={styles.descText}>{zone.description}</Text>
-                </View>
-
-                {/* Gender Specific Physiological Coaching Tip */}
-                {zone.genderTip && (
-                  <View style={styles.genderTipBox}>
-                    <Sparkles size={11} color="#2563EB" />
-                    <Text style={styles.genderTipText}>
-                      <Text style={{ fontWeight: '800' }}>
-                        Fisiologi {gender === 'male' ? 'Pria' : 'Wanita'}:{' '}
-                      </Text>
-                      {zone.genderTip}
-                    </Text>
-                  </View>
-                )}
-              </View>
-            ))}
-          </ScrollView>
-
-          {/* Bottom Action */}
           <TouchableOpacity
-            style={styles.doneBtn}
+            accessibilityRole="button"
+            accessibilityLabel="Tutup zona detak jantung"
+            style={styles.closeBtn}
+            activeOpacity={0.7}
             onPress={onClose}
-            activeOpacity={0.8}
           >
-            <Text style={styles.doneBtnText}>Tutup Panduan Zona</Text>
+            <X size={16} color={colors.ink500} />
           </TouchableOpacity>
         </View>
+
+        {/* Formula — caption tenang, tanpa banner berwarna */}
+        <View style={styles.formulaBox}>
+          <Activity size={12} color={colors.outline} />
+          <Text style={styles.formulaText} numberOfLines={2}>
+            {formulaName ||
+              (gender === 'female'
+                ? 'Formula Gulati · 206 − 0.88 × usia'
+                : 'Formula Tanaka · 208 − 0.7 × usia')}
+          </Text>
+        </View>
+
+        {/* Daftar zona */}
+        <ScrollView
+          style={styles.list}
+          contentContainerStyle={styles.listContent}
+          showsVerticalScrollIndicator={false}
+        >
+          {zones.map((zone, i) => (
+            <View
+              key={zone.zone}
+              style={[styles.zoneRow, i === zones.length - 1 && styles.zoneRowLast]}
+            >
+              <View style={[styles.zoneBar, { backgroundColor: zone.color }]} />
+              <View style={styles.zoneBody}>
+                <View style={styles.zoneHead}>
+                  <View style={[styles.zoneTag, { backgroundColor: `${zone.color}1A` }]}>
+                    <Text style={[styles.zoneTagText, { color: zone.color }]}>Z{zone.zone}</Text>
+                  </View>
+                  <Text style={styles.zoneName} numberOfLines={1}>
+                    {zone.name}
+                  </Text>
+                  <Text style={styles.zoneBpm} numberOfLines={1}>
+                    {zone.bpmRange}
+                  </Text>
+                </View>
+                <Text style={styles.zoneMeta}>
+                  {zone.intensity} · {zone.rangePercentage}
+                </Text>
+                <Text style={styles.zoneDesc}>{zone.description}</Text>
+              </View>
+            </View>
+          ))}
+        </ScrollView>
+
+        <TouchableOpacity style={styles.doneBtn} activeOpacity={0.8} onPress={onClose}>
+          <Text style={styles.doneBtnText}>Tutup</Text>
+        </TouchableOpacity>
       </View>
-    </Modal>
-  );
-};
+    </View>
+  </Modal>
+);
 
 const styles = StyleSheet.create({
   backdrop: {
     flex: 1,
-    backgroundColor: 'rgba(15, 23, 42, 0.65)',
+    backgroundColor: 'rgba(11,28,48,0.5)',
     justifyContent: 'center',
-    alignItems: 'center',
-    padding: 16,
+    paddingHorizontal: 20,
   },
-  modalCard: {
+  card: {
     width: '100%',
-    maxHeight: '85%',
-    backgroundColor: '#FFFFFF',
+    maxWidth: 380,
+    alignSelf: 'center',
+    height: '86%',
+    maxHeight: 600,
+    backgroundColor: colors.surfaceLowest,
     borderRadius: 24,
-    padding: 18,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 10 },
-    shadowOpacity: 0.15,
-    shadowRadius: 20,
-    elevation: 8,
+    paddingHorizontal: 18,
+    paddingTop: 16,
+    paddingBottom: 14,
+    gap: 10,
+    boxShadow: '0px 12px 40px rgba(11,28,48,0.25)',
   },
-  modalHeader: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    marginBottom: 8,
-  },
-  headerLeft: {
+  header: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: 10,
-    flex: 1,
   },
-  headerTagRow: {
-    flexDirection: 'row',
+  iconBox: {
+    width: 34,
+    height: 34,
+    borderRadius: 11,
+    backgroundColor: 'rgba(186,26,26,0.08)',
     alignItems: 'center',
-    gap: 6,
-    flexWrap: 'wrap',
-  },
-  heartIconBox: {
-    width: 36,
-    height: 36,
-    borderRadius: 12,
-    backgroundColor: 'rgba(239, 68, 68, 0.1)',
     justifyContent: 'center',
-    alignItems: 'center',
   },
-  modalTitle: {
-    fontSize: 14,
-    fontWeight: '800',
-    color: '#0F172A',
-  },
-  genderBadge: {
-    backgroundColor: '#0F172A',
-    paddingHorizontal: 5,
-    paddingVertical: 1.5,
-    borderRadius: 4,
-  },
-  genderBadgeText: {
-    color: '#FFFFFF',
-    fontSize: 8.5,
-    fontWeight: '800',
-  },
-  modalSubtitle: {
-    fontSize: 11,
-    color: '#64748B',
-    marginTop: 1,
-  },
+  headerTexts: { flex: 1, gap: 2 },
+  title: { fontSize: 16, fontFamily: fonts.extraBold, color: colors.onSurface },
+  subtitle: { fontSize: 12, fontFamily: fonts.regular, color: colors.ink500 },
   closeBtn: {
-    padding: 6,
-    borderRadius: 8,
-    backgroundColor: '#F1F5F9',
+    width: 30,
+    height: 30,
+    borderRadius: 9,
+    backgroundColor: colors.surfaceLow,
+    alignItems: 'center',
+    justifyContent: 'center',
   },
-  formulaBanner: {
+  formulaBox: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: 6,
-    backgroundColor: '#EEF2FF',
+    backgroundColor: colors.surfaceLow,
+    borderRadius: 10,
     paddingHorizontal: 10,
-    paddingVertical: 5,
-    borderRadius: 8,
-    marginBottom: 10,
-    borderWidth: 1,
-    borderColor: '#C7D2FE',
+    paddingVertical: 8,
   },
   formulaText: {
-    color: '#4338CA',
-    fontSize: 9.5,
-    fontWeight: '700',
     flex: 1,
+    fontSize: 10.5,
+    fontFamily: fonts.medium,
+    color: colors.ink500,
+    lineHeight: 14,
   },
-  zonesScroll: {
-    marginVertical: 4,
-  },
-  zoneItem: {
-    backgroundColor: '#F8FAFC',
-    borderRadius: 14,
-    padding: 10,
-    marginBottom: 8,
-    borderWidth: 1,
-    borderColor: '#E2E8F0',
-  },
-  zoneTopRow: {
+  list: { flex: 1 },
+  listContent: { paddingBottom: 4 },
+  zoneRow: {
     flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    marginBottom: 4,
+    gap: 10,
+    paddingVertical: 11,
+    borderBottomWidth: 1,
+    borderBottomColor: 'rgba(188,202,192,0.4)',
   },
-  zoneNameGroup: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 6,
-  },
-  zoneBadge: {
-    paddingHorizontal: 5,
-    paddingVertical: 2,
-    borderRadius: 5,
-  },
-  zoneBadgeText: {
-    color: '#FFFFFF',
-    fontSize: 9,
-    fontWeight: '800',
-  },
-  zoneNameText: {
-    fontSize: 12,
-    fontWeight: '800',
-    color: '#0F172A',
-  },
-  zoneBpmGroup: {
-    alignItems: 'flex-end',
-  },
-  bpmRangeText: {
-    fontSize: 11,
-    fontWeight: '800',
-    color: '#0F172A',
-  },
-  percentText: {
-    fontSize: 9,
-    color: '#64748B',
-    fontWeight: '600',
-  },
-  zoneBottomRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 6,
-    marginTop: 2,
-  },
-  intensityPill: {
-    paddingHorizontal: 5,
-    paddingVertical: 2,
-    borderRadius: 4,
-  },
-  intensityText: {
-    fontSize: 9,
-    fontWeight: '700',
-  },
-  descText: {
-    fontSize: 10,
-    color: '#475569',
+  zoneRowLast: { borderBottomWidth: 0 },
+  zoneBar: { width: 4, borderRadius: 2 },
+  zoneBody: { flex: 1, gap: 3 },
+  zoneHead: { flexDirection: 'row', alignItems: 'center', gap: 7 },
+  zoneTag: { paddingHorizontal: 7, paddingVertical: 2, borderRadius: 7 },
+  zoneTagText: { fontSize: 10, fontFamily: fonts.extraBold },
+  zoneName: {
     flex: 1,
-    lineHeight: 13,
+    fontSize: 13,
+    fontFamily: fonts.bold,
+    color: colors.onSurface,
   },
-  genderTipBox: {
-    flexDirection: 'row',
-    alignItems: 'flex-start',
-    gap: 5,
-    marginTop: 6,
-    paddingTop: 5,
-    borderTopWidth: 1,
-    borderTopColor: '#E2E8F0',
-    backgroundColor: 'rgba(59, 130, 246, 0.05)',
-    padding: 5,
-    borderRadius: 6,
-  },
-  genderTipText: {
-    fontSize: 9.5,
-    color: '#1E40AF',
-    flex: 1,
-    lineHeight: 13,
+  zoneBpm: { fontSize: 12, fontFamily: fonts.extraBold, color: colors.onSurface },
+  zoneMeta: { fontSize: 11, fontFamily: fonts.medium, color: colors.ink400 },
+  zoneDesc: {
+    fontSize: 11.5,
+    fontFamily: fonts.regular,
+    color: colors.ink500,
+    lineHeight: 16,
   },
   doneBtn: {
-    backgroundColor: '#0F172A',
+    backgroundColor: colors.primary,
     borderRadius: 12,
-    paddingVertical: 12,
+    paddingVertical: 13,
     alignItems: 'center',
-    marginTop: 10,
   },
-  doneBtnText: {
-    color: '#FFFFFF',
-    fontSize: 13,
-    fontWeight: '700',
-  },
+  doneBtnText: { fontSize: 14, fontFamily: fonts.bold, color: colors.onPrimary },
 });

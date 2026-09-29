@@ -48,7 +48,12 @@ export const WorkoutAnalysisModal: React.FC<WorkoutAnalysisModalProps> = ({
       <View style={styles.container}>
         {/* Header */}
         <View style={styles.header}>
-          <TouchableOpacity onPress={onClose} style={styles.headerBtn}>
+          <TouchableOpacity
+            testID="workout-close"
+            accessibilityLabel="Tutup analisis"
+            onPress={onClose}
+            style={styles.headerBtn}
+          >
             <X size={24} color="#0F172A" />
           </TouchableOpacity>
           <Text style={styles.headerTitle}>Run</Text>
