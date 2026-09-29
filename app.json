@@ -21,6 +21,7 @@
       ]
     },
     "plugins": [
+      "./plugins/withSafeGradleProjectName",
       [
         "expo-location",
         {
@@ -30,8 +31,9 @@
     ],
     "extra": {
       "eas": {
-        "projectId": "95ec301d-ae04-4642-b1bb-c97a532162d1"
+        "projectId": "a7d37b57-bd9b-4bbd-be44-be46c3df18ab"
       }
-    }
+    },
+    "owner": "pointerenjoyers-team"
   }
 }
